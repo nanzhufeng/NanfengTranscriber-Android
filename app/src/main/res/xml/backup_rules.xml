@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <exclude domain="root" path="models/" />
+    <exclude domain="root" path="staging/" />
+    <exclude domain="file" path="models/" />
+    <exclude domain="file" path="staging/" />
+    <exclude domain="database" path="." />
+    <exclude domain="sharedpref" path="secure-api-credentials.xml" />
+</full-backup-content>

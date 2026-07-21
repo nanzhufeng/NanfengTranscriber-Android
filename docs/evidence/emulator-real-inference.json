@@ -1,0 +1,21 @@
+{
+  "environment": "NanzhufengFindN5Api35 AVD / Android 15 / arm64",
+  "engine": "whisper.cpp v1.9.1",
+  "engineCommit": "f049fff95a089aa9969deb009cdd4892b3e74916",
+  "model": "ggml-tiny.en-q5_1.bin",
+  "modelBytes": 32166155,
+  "modelSha256": "c77c5766f1cef09b6b7d47f21b546cbddd4157886b3b5d6d4f709e91e66c7c2b",
+  "sample": "whisper.cpp/samples/jfk.wav",
+  "sampleRate": 16000,
+  "sampleCount": 176000,
+  "audioMillis": 11000,
+  "loadMillis": 220,
+  "inferenceMillis": 14731,
+  "realtimeFactor": 1.339,
+  "detectedLanguage": "en",
+  "segmentCount": 2,
+  "text": "and so my fellow americans ask not what your country can do for you ask what you can do for your country.",
+  "sameSignatureUpgradePreservedModel": true,
+  "rebootPreservedModel": true,
+  "hardwarePerformanceGatePassed": false
+}

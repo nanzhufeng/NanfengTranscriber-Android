@@ -1,0 +1,12 @@
+{
+  "environment": "NanzhufengFindN5Api35 AVD / Android 15 / arm64",
+  "source": "whisper.cpp/samples/jfk.wav",
+  "pipeline": "MediaExtractor + MediaCodec -> PCM16 16kHz mono file -> chunked whisper.cpp inference",
+  "decodeMillis": 207,
+  "modelLoadMillis": 298,
+  "inferenceMillis": 15935,
+  "pcmSamples": 176000,
+  "segmentCount": 2,
+  "text": "and so my fellow americans ask not what your country can do for you ask what you can do for your country.",
+  "hardwarePerformanceGatePassed": false
+}

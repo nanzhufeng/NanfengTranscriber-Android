@@ -1,0 +1,10 @@
+Find N5 / com.nanzhufeng.transcriber:transcription
+timestamp=2026-07-20 21:12:43.450
+pid=12465
+realUid=10592
+importance=125
+reason=13 (OTHER KILLS BY SYSTEM)
+subreason=1024 (UNKNOWN)
+status=0
+rss=525MB
+description=Cached(nirvana)[(fg-service){fg-service}]
