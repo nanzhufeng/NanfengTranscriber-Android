@@ -21,7 +21,7 @@
 - APK SHA-256：`ac132917c0763de48d8b58fb6ba420b6760d4b082e82a9e30440e85edca1e58e`
 - 证书 SHA-256：`ee95f8d726b8fb85f15d0eb26d385505cb20a22cf1d749ec3e4327d7ee783174`
 - `apksigner verify --print-certs` 通过，与已安装正式版使用的证书一致。
-- 当前未完成代码已上传到私有 GitHub 仓库；仓库简介和 README 顶部均明确标注“未完成、转写准确度不足、暂停开发”。未创建 GitHub Release 或 PR。
+- 当前未完成代码已上传到私有 GitHub 仓库；仓库简介和 README 顶部均明确标注“未完成、转写准确度不足、暂停开发”。已使用 `paused-development-v15` 创建 GitHub Pre-release，附正式签名 APK 和 SHA-256 校验文件；未创建正式 Release 或 PR。
 
 ## 2. 版本 15 修复
 

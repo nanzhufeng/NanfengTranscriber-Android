@@ -9,6 +9,14 @@ Windows 版“南枫转写”的独立 Android 正式项目。项目采用原生
 
 当前暂停在 `0.14.0-final-regression (15)`：已实现三档模型长期缓存与备份管理、队列级热会话、真实音视频转写、内嵌文字字幕优先提取、批量/文件夹/分享输入、后台顺序队列、分块断点、可编辑历史与四格式导出。版本 15 已通过自动门禁和 API 35 模拟器真实字幕/导出回归，但转写准确度不符合成品要求，且尚未完成该版 OPPO 真机覆盖、数据保留和长任务闭环。准确边界见 [`docs/CURRENT_HANDOFF.md`](docs/CURRENT_HANDOFF.md)。
 
+## 下载未完成测试版
+
+- [GitHub Pre-release：南枫转写 Android v0.14.0（未完成／暂停开发）](https://github.com/nanzhufeng/NanfengTranscriber-Android/releases/tag/paused-development-v15)
+- APK：`NanfengTranscriber-Android-v0.14.0-unfinished.apk`
+- SHA-256：`ac132917c0763de48d8b58fb6ba420b6760d4b082e82a9e30440e85edca1e58e`
+
+该 APK 只供测试和代码保存，安装前请先阅读上方未完成说明。
+
 ## 界面预览
 
 以下为版本 15 在 API 35、`1140 × 2616 / 442dpi` 项目专用模拟器上的真实界面，不代表最终 OPPO 真机发布已通过。
