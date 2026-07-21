@@ -9,6 +9,21 @@ Windows 版“南枫转写”的独立 Android 正式项目。项目采用原生
 
 当前暂停在 `0.14.0-final-regression (15)`：已实现三档模型长期缓存与备份管理、队列级热会话、真实音视频转写、内嵌文字字幕优先提取、批量/文件夹/分享输入、后台顺序队列、分块断点、可编辑历史与四格式导出。版本 15 已通过自动门禁和 API 35 模拟器真实字幕/导出回归，但转写准确度不符合成品要求，且尚未完成该版 OPPO 真机覆盖、数据保留和长任务闭环。准确边界见 [`docs/CURRENT_HANDOFF.md`](docs/CURRENT_HANDOFF.md)。
 
+## 界面预览
+
+以下为版本 15 在 API 35、`1140 × 2616 / 442dpi` 项目专用模拟器上的真实界面，不代表最终 OPPO 真机发布已通过。
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/qa/final-regression-v15/emulator-home-subtitle-ready.png" width="260" alt="主页转写工作台"><br><sub>主页转写工作台</sub></td>
+    <td align="center"><img src="docs/qa/final-regression-v15/emulator-history-subtitle.png" width="260" alt="历史时间线"><br><sub>历史时间线</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/qa/final-regression-v15/emulator-media-editor.png" width="260" alt="视频和可编辑转写结果核对"><br><sub>视频＋可编辑文字核对</sub></td>
+    <td align="center"><img src="docs/qa/final-regression-v15/emulator-settings.png" width="260" alt="皮肤、模型和转写设置"><br><sub>皮肤、模型与转写设置</sub></td>
+  </tr>
+</table>
+
 ## 构建
 
 ```bash
