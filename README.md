@@ -11,7 +11,7 @@ Windows 版“南枫转写”的独立 Android 正式项目。项目采用原生
 
 ## 下载未完成测试版
 
-- [GitHub Pre-release：南枫转写 Android v0.14.0（未完成／暂停开发）](https://github.com/nanzhufeng/NanfengTranscriber-Android/releases/tag/paused-development-v15)
+- [GitHub Release：南枫转写 Android v0.14.0（未完成／暂停开发）](https://github.com/nanzhufeng/NanfengTranscriber-Android/releases/tag/paused-development-v15)
 - APK：`NanfengTranscriber-Android-v0.14.0-unfinished.apk`
 - SHA-256：`ac132917c0763de48d8b58fb6ba420b6760d4b082e82a9e30440e85edca1e58e`
 
