@@ -4,6 +4,14 @@
 
 当前状态：版本 15 已通过自动门禁和专用模拟器核心回归；OPPO Find N5 当前未连接 ADB，版本 15 尚未覆盖真机，不得写成最终真机验收完成。
 
+## 0. 当前代码 checkpoint
+
+- 分支：`main`；本地仓库尚未配置 upstream，没有推送 GitHub。
+- 首个正式基线提交：`59ecf86e502e364a43502558bcc385cb451f6e15` (`checkpoint: freeze Android v15 final regression baseline`)。
+- 本轮交接固化完成后使用本地标签 `checkpoint-v15-final-regression`指向最终文档提交。
+- checkpoint 前已审计 198 个文件：构建目录、APK、模型、keystore 和明文凭据均未进入提交；whisper.cpp submodule 固定为 `f049fff95a089aa9969deb009cdd4892b3e74916` (`v1.9.1`)。
+- checkpoint 没有改变业务代码，只完成首次 Git 基线、行尾/文档空白规范和秘密边界审计；按“已完成内容忽略”的要求，未重复执行上一轮已通过的 45 项 JVM、8 项 instrumentation 和四格式真链路。
+
 ## 1. 最终候选产物
 
 - 包名：`com.nanzhufeng.transcriber`
