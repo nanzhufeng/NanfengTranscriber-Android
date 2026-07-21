@@ -6,7 +6,7 @@
 
 ## 0. 当前代码 checkpoint
 
-- 分支：`main`；本地仓库尚未配置 upstream，没有推送 GitHub。
+- 分支：`main`，跟踪 `origin/main`；私有 GitHub 仓库为 `nanzhufeng/NanfengTranscriber-Android`。
 - 首个正式基线提交：`59ecf86e502e364a43502558bcc385cb451f6e15` (`checkpoint: freeze Android v15 final regression baseline`)。
 - 本轮交接固化完成后使用本地标签 `checkpoint-v15-final-regression`指向最终文档提交。
 - checkpoint 前已审计 198 个文件：构建目录、APK、模型、keystore 和明文凭据均未进入提交；whisper.cpp submodule 固定为 `f049fff95a089aa9969deb009cdd4892b3e74916` (`v1.9.1`)。
@@ -21,7 +21,7 @@
 - APK SHA-256：`ac132917c0763de48d8b58fb6ba420b6760d4b082e82a9e30440e85edca1e58e`
 - 证书 SHA-256：`ee95f8d726b8fb85f15d0eb26d385505cb20a22cf1d749ec3e4327d7ee783174`
 - `apksigner verify --print-certs` 通过，与已安装正式版使用的证书一致。
-- GitHub 上传、提交、Release 均未执行，符合当前禁止上传的要求。
+- 当前未完成代码已上传到私有 GitHub 仓库；仓库简介和 README 顶部均明确标注“未完成、转写准确度不足、暂停开发”。未创建 GitHub Release 或 PR。
 
 ## 2. 版本 15 修复
 
@@ -87,4 +87,4 @@
 2. 拉取已安装 APK，将证书 SHA-256 与版本 15 候选包逐项比较；不一致则立即停止。
 3. 推送到 `/data/local/tmp`，执行 `pm install -r --user 0`；不用 `adb install`，不卸载，不清数据，不安装测试辅助包。
 4. 验证 `firstInstallTime`、模型缓存、历史、皮肤、字幕直接提取、四格式落盘和 crash/ANR。
-5. 通过后再开始系统杀进程恢复和 60 分钟/两小时长测；GitHub 继续暂停。
+5. 通过后再开始系统杀进程恢复和 60 分钟/两小时长测；除非用户明确恢复开发，不继续推送或创建 Release。
