@@ -1,5 +1,7 @@
 # 下一轮建议提示词
 
+项目当前为未完成品，因转写准确度不足而暂时搁置。除非用户明确要求恢复开发，不主动继续实现、安装或发布。
+
 继续 `/Users/nanzhufeng/Documents/工具开发/NanfengTranscriber-Android`。先读根目录 `AGENTS.md`、`docs/CURRENT_HANDOFF.md`、`docs/domain-rules.md` 和 `docs/product-acceptance.md`。当前候选为 `0.14.0-final-regression (15)`，自动门禁和 API 35 模拟器字幕/四格式真链路已通过；OPPO 未连接 ADB，所以版本 15 尚未真机覆盖。
 
 当前已建立本地 checkpoint：基线提交 `59ecf86e502e364a43502558bcc385cb451f6e15`，最终文档交接由标签 `checkpoint-v15-final-regression` 定位。无 upstream，不得自动推送。
