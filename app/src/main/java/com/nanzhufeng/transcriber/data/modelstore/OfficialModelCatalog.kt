@@ -1,63 +1,135 @@
 package com.nanzhufeng.transcriber.data.modelstore
 
 object OfficialModelCatalog {
-    const val ENGINE_VERSION = "whisper.cpp-v1.9.1"
-    const val MODEL_REPOSITORY_REVISION = "5359861c739e955e79d9a303bcbc70fb988958b1"
+    const val SHERPA_ENGINE_VERSION = "sherpa-onnx-v1.13.6"
+    const val SENSEVOICE_REPOSITORY_REVISION = "355f4d4884d8afd08aef04b9007a8556d7b463b2"
 
-    val candidates: List<CatalogModel> = listOf(
+    /** 只供固定素材 A/B 与隔离验收使用，达标后再替换正式均衡档映射。 */
+    val experimentalCandidates: List<CatalogModel> = listOf(
         CatalogModel(
-            displayName = "极速｜Base",
-            profile = ModelPerformanceProfile.LIGHT,
-            downloadUrl = "https://huggingface.co/ggerganov/whisper.cpp/resolve/$MODEL_REPOSITORY_REVISION/ggml-base.bin",
-            manifest = ModelManifest(
-                modelId = "base",
-                version = "hf-5359861c",
-                expectedBytes = 147_951_465L,
-                sha256 = "60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe",
-                engineVersion = ENGINE_VERSION,
-            ),
-        ),
-        CatalogModel(
-            displayName = "均衡｜Small Q5_1（推荐）",
+            displayName = "本地标准",
             profile = ModelPerformanceProfile.BALANCED,
-            downloadUrl = "https://huggingface.co/ggerganov/whisper.cpp/resolve/$MODEL_REPOSITORY_REVISION/ggml-small-q5_1.bin",
+            provider = AsrProviderId.SENSEVOICE,
             manifest = ModelManifest(
-                modelId = "small-q5_1",
-                version = "hf-5359861c",
-                expectedBytes = 190_085_487L,
-                sha256 = "ae85e4a935d7a567bd102fe55afc16bb595bdb618e11b2fc7591bc08120411bb",
-                engineVersion = ENGINE_VERSION,
+                modelId = "sensevoice-small-int8",
+                version = "hf-355f4d48",
+                files = listOf(
+                    ModelFileManifest(
+                        relativePath = "model.int8.onnx",
+                        expectedBytes = 237_115_547L,
+                        sha256 = "12ca1a2ae7ecf3e0019ef2822307ee0b5cadc9196569e379b4c4026f8205276d",
+                    ),
+                    ModelFileManifest(
+                        relativePath = "tokens.txt",
+                        expectedBytes = 315_894L,
+                        sha256 = "f449eb28dc567533d7fa59be34e2abca8784f771850c78a47fb731a31429a1dc",
+                    ),
+                ),
+                engineVersion = SHERPA_ENGINE_VERSION,
+                entryFile = "model.int8.onnx",
             ),
-        ),
-        CatalogModel(
-            displayName = "高质量｜Large V3 Turbo Q5_0",
-            profile = ModelPerformanceProfile.HIGH_QUALITY,
-            downloadUrl = "https://huggingface.co/ggerganov/whisper.cpp/resolve/$MODEL_REPOSITORY_REVISION/ggml-large-v3-turbo-q5_0.bin",
-            manifest = ModelManifest(
-                modelId = "large-v3-turbo-q5_0",
-                version = "hf-5359861c",
-                expectedBytes = 574_041_195L,
-                sha256 = "394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2",
-                engineVersion = ENGINE_VERSION,
+            downloads = listOf(
+                ModelDownload("model.int8.onnx", senseVoiceUrl("model.int8.onnx")),
+                ModelDownload("tokens.txt", senseVoiceUrl("tokens.txt")),
+            ),
+            capabilities = AsrCapabilities(
+                supportsTimestamp = false,
+                supportsStreaming = false,
+                supportsDiarization = false,
+                supportsHotwords = false,
+                supportsOffline = true,
+                recommendedChunkMillis = 30_000L,
             ),
         ),
     )
 
-    fun find(modelId: String): CatalogModel? = candidates.firstOrNull {
+    /** 云端高精度档：不下载伪模型，实际向千问发送所选音频片段。 */
+    val apiCandidates: List<CatalogModel> = listOf(
+        CatalogModel(
+            displayName = "高精度 Qwen",
+            profile = ModelPerformanceProfile.HIGH_QUALITY,
+            provider = AsrProviderId.QWEN3_ASR_API,
+            manifest = ModelManifest(
+                modelId = "qwen3-asr-api",
+                version = "dashscope-qwen3-asr-flash",
+                expectedBytes = 1L,
+                sha256 = "0000000000000000000000000000000000000000000000000000000000000000",
+                engineVersion = "DashScope Qwen3-ASR API",
+            ),
+            downloads = emptyList(),
+            capabilities = AsrCapabilities(
+                supportsTimestamp = false,
+                supportsStreaming = false,
+                supportsDiarization = false,
+                supportsHotwords = false,
+                supportsOffline = false,
+                recommendedChunkMillis = 30_000L,
+            ),
+            requiresLocalCache = false,
+        ),
+    )
+
+    /** 设置与单项转写中的唯一公开顺序。 */
+    val modelSelectionCandidates: List<CatalogModel> = listOf(
+        experimentalCandidates.single(),
+        apiCandidates.single(),
+    )
+
+    val allCandidates: List<CatalogModel> = modelSelectionCandidates
+
+    fun find(modelId: String): CatalogModel? = allCandidates.firstOrNull {
         it.manifest.modelId == modelId
     }
+
+    private fun senseVoiceUrl(fileName: String): String =
+        "https://huggingface.co/csukuangfj/" +
+            "sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2025-09-09/resolve/" +
+            "$SENSEVOICE_REPOSITORY_REVISION/$fileName"
 }
 
 data class CatalogModel(
     val displayName: String,
     val profile: ModelPerformanceProfile,
-    val downloadUrl: String,
+    val provider: AsrProviderId,
     val manifest: ModelManifest,
+    val downloads: List<ModelDownload>,
+    val capabilities: AsrCapabilities,
+    val requiresLocalCache: Boolean = true,
+) {
+    init {
+        if (requiresLocalCache) {
+            require(
+                downloads.map(ModelDownload::relativePath).toSet() ==
+                    manifest.files.map(ModelFileManifest::relativePath).toSet(),
+            ) { "模型下载清单必须与文件清单一致" }
+        } else {
+            require(downloads.isEmpty()) { "API 模型不得伪造本地下载" }
+        }
+    }
+
+    val downloadUrl: String get() = downloads.first().url
+}
+
+data class ModelDownload(
+    val relativePath: String,
+    val url: String,
+)
+
+enum class AsrProviderId {
+    SENSEVOICE,
+    QWEN3_ASR_API,
+}
+
+data class AsrCapabilities(
+    val supportsTimestamp: Boolean,
+    val supportsStreaming: Boolean,
+    val supportsDiarization: Boolean,
+    val supportsHotwords: Boolean,
+    val supportsOffline: Boolean,
+    val recommendedChunkMillis: Long,
 )
 
 enum class ModelPerformanceProfile {
-    LIGHT,
     BALANCED,
-    QUALITY,
     HIGH_QUALITY,
 }

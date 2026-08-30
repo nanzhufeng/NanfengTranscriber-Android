@@ -1,5 +1,6 @@
 package com.nanzhufeng.transcriber.engine
 
+import com.nanzhufeng.transcriber.data.modelstore.AsrProviderId
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.io.Closeable
@@ -7,18 +8,23 @@ import java.nio.file.Path
 
 /** Keeps one warm model session alive for a sequential transcription queue. */
 class QueueModelSessionOwner(
-    private val engineFactory: (threadCount: Int) -> SpeechEngine,
+    private val engineFactory: (provider: AsrProviderId, threadCount: Int) -> SpeechEngine,
 ) : Closeable {
     private val mutex = Mutex()
     private var slot: SessionSlot? = null
 
-    suspend fun acquire(modelPath: Path, threadCount: Int): QueueModelAcquisition = mutex.withLock {
+    suspend fun acquire(
+        provider: AsrProviderId,
+        modelPath: Path,
+        threadCount: Int,
+    ): QueueModelAcquisition = mutex.withLock {
         require(threadCount > 0) { "CPU 线程数必须大于 0" }
         var current = slot
-        if (current == null || current.threadCount != threadCount) {
+        if (current == null || current.provider != provider || current.threadCount != threadCount) {
             current?.session?.close()
-            val engine = engineFactory(threadCount)
+            val engine = engineFactory(provider, threadCount)
             current = SessionSlot(
+                provider = provider,
                 threadCount = threadCount,
                 engine = engine,
                 session = ModelSessionManager(engine),
@@ -44,6 +50,7 @@ class QueueModelSessionOwner(
     }
 
     private data class SessionSlot(
+        val provider: AsrProviderId,
         val threadCount: Int,
         val engine: SpeechEngine,
         val session: ModelSessionManager,

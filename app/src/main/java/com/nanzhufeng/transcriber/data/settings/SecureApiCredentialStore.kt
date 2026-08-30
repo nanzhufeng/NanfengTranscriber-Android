@@ -40,7 +40,12 @@ class SecureApiCredentialStore(context: Context) {
         cipher.doFinal(encrypted).toString(StandardCharsets.UTF_8).trim().ifBlank { null }
     }.getOrNull()
 
-    fun hasApiKey(): Boolean = readApiKey() != null
+    /**
+     * 设置页只需要知道凭据是否存在，不应为了画一行状态而解密 Key。
+     * 明文仅在用户点按显隐控制，或实际发起已授权的转写请求时读取。
+     */
+    fun hasApiKey(): Boolean =
+        preferences.contains(ENCRYPTED_KEY) && preferences.contains(IV_KEY)
 
     fun clearApiKey() {
         preferences.edit().remove(ENCRYPTED_KEY).remove(IV_KEY).apply()

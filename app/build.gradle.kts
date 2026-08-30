@@ -1,5 +1,3 @@
-import java.io.ByteArrayOutputStream
-
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -8,8 +6,6 @@ plugins {
 }
 
 val releaseKeyAlias = "nanfeng-transcriber"
-val releaseKeychainService = "com.nanzhufeng.transcriber.signing"
-val releaseKeychainAccount = "keystore-password"
 val releaseKeystorePath = providers.environmentVariable("NANFENG_TRANSCRIBER_KEYSTORE")
     .orElse(providers.gradleProperty("nanfengTranscriber.keystore"))
     .orElse(
@@ -17,38 +13,16 @@ val releaseKeystorePath = providers.environmentVariable("NANFENG_TRANSCRIBER_KEY
             "NanzhufengSigning/NanfengTranscriber-Android/nanfeng-transcriber-release.jks",
     )
     .get()
-
-fun readReleasePasswordFromMacKeychain(): String? {
-    if (!System.getProperty("os.name").startsWith("Mac", ignoreCase = true)) return null
-
-    return runCatching {
-        val output = ByteArrayOutputStream()
-        val result = exec {
-            commandLine(
-                "/usr/bin/security",
-                "find-generic-password",
-                "-w",
-                "-a",
-                releaseKeychainAccount,
-                "-s",
-                releaseKeychainService,
-            )
-            standardOutput = output
-            errorOutput = ByteArrayOutputStream()
-            isIgnoreExitValue = true
-        }
-        output.toString(Charsets.UTF_8.name())
-            .trim()
-            .takeIf { result.exitValue == 0 && it.isNotEmpty() }
-    }.getOrNull()
-}
-
 val releaseStorePassword = providers.environmentVariable("NANFENG_TRANSCRIBER_KEYSTORE_PASSWORD")
     .orElse(providers.gradleProperty("nanfengTranscriber.storePassword"))
     .orNull
-    ?: readReleasePasswordFromMacKeychain()
+val releaseKeyPassword = providers.environmentVariable("NANFENG_TRANSCRIBER_KEY_PASSWORD")
+    .orElse(providers.gradleProperty("nanfengTranscriber.keyPassword"))
+    .orNull
 val releaseKeystoreFile = file(releaseKeystorePath)
-val releaseSigningReady = releaseKeystoreFile.isFile && !releaseStorePassword.isNullOrBlank()
+val releaseSigningReady = releaseKeystoreFile.isFile &&
+    !releaseStorePassword.isNullOrBlank() &&
+    !releaseKeyPassword.isNullOrBlank()
 
 android {
     namespace = "com.nanzhufeng.transcriber"
@@ -97,7 +71,7 @@ android {
                 storeFile = releaseKeystoreFile
                 storePassword = releaseStorePassword
                 keyAlias = releaseKeyAlias
-                keyPassword = releaseStorePassword
+                keyPassword = releaseKeyPassword
                 enableV1Signing = true
                 enableV2Signing = true
                 enableV3Signing = true
@@ -129,7 +103,7 @@ gradle.taskGraph.whenReady {
     if (needsReleaseSigning && !releaseSigningReady) {
         throw GradleException(
             "Release 构建缺少南枫转写正式签名。请配置跨平台环境变量，" +
-                "或在 macOS 钥匙串中恢复签名密码。",
+                "或在用户级 ~/.gradle/gradle.properties 中配置 App 专属完整凭据。",
         )
     }
 }

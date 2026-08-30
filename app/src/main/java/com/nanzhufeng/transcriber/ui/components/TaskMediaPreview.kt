@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.outlined.Movie
 import androidx.compose.material.icons.outlined.MusicNote
+import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -80,22 +81,30 @@ fun TaskMediaPreview(
             if (thumbnail != null) {
                 Image(
                     bitmap = requireNotNull(thumbnail).asImageBitmap(),
-                    contentDescription = "$displayName 视频预览图",
+                    contentDescription = if (kind == HistoryMediaKind.IMAGE) "$displayName 图片预览图" else "$displayName 视频预览图",
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop,
                 )
             } else {
                 Icon(
-                    imageVector = if (kind == HistoryMediaKind.AUDIO) Icons.Outlined.MusicNote else Icons.Outlined.Movie,
-                    contentDescription = if (kind == HistoryMediaKind.AUDIO) "$displayName 音频" else "$displayName 视频",
+                    imageVector = when (kind) {
+                        HistoryMediaKind.AUDIO -> Icons.Outlined.MusicNote
+                        HistoryMediaKind.IMAGE -> Icons.Outlined.Image
+                        else -> Icons.Outlined.Movie
+                    },
+                    contentDescription = when (kind) {
+                        HistoryMediaKind.AUDIO -> "$displayName 音频"
+                        HistoryMediaKind.IMAGE -> "$displayName 图片"
+                        else -> "$displayName 视频"
+                    },
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(28.dp),
                 )
             }
             if (showPlayOverlay) {
                 Icon(
-                    imageVector = Icons.Filled.PlayCircle,
-                    contentDescription = "播放 $displayName 核对文字",
+                    imageVector = if (kind == HistoryMediaKind.IMAGE) Icons.Outlined.Image else Icons.Filled.PlayCircle,
+                    contentDescription = if (kind == HistoryMediaKind.IMAGE) "查看 $displayName 图片" else "播放 $displayName 核对文字",
                     tint = Color.White,
                     modifier = Modifier.size(30.dp),
                 )

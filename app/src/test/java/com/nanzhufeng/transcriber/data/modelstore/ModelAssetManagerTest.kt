@@ -1,5 +1,6 @@
 package com.nanzhufeng.transcriber.data.modelstore
 
+import com.nanzhufeng.transcriber.domain.model.ModelInstallState
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
@@ -15,6 +16,7 @@ import java.io.ByteArrayOutputStream
 import java.nio.file.Files
 import java.nio.file.StandardOpenOption
 import java.security.MessageDigest
+import java.util.zip.ZipInputStream
 
 class ModelAssetManagerTest {
     @get:Rule
@@ -119,6 +121,59 @@ class ModelAssetManagerTest {
         assertArrayEquals(bytes, exportedBytes.toByteArray())
     }
 
+    @Test
+    fun multiFileModelDownloadsAndPortableBundleRoundTrips() = runBlocking {
+        val modelBytes = "sensevoice-model".toByteArray()
+        val tokensBytes = "tokens".toByteArray()
+        val manifest = bundleManifest(modelBytes, tokensBytes)
+        val server = MockWebServer()
+        server.enqueue(MockResponse().setResponseCode(200).setBody(String(modelBytes)))
+        server.enqueue(MockResponse().setResponseCode(200).setBody(String(tokensBytes)))
+        server.start()
+        try {
+            val store = newStore("bundle-download")
+            val manager = ModelAssetManager(store, OkHttpClient())
+            val catalogModel = CatalogModel(
+                displayName = "SenseVoice test",
+                profile = ModelPerformanceProfile.BALANCED,
+                provider = AsrProviderId.SENSEVOICE,
+                manifest = manifest,
+                downloads = listOf(
+                    ModelDownload("model.int8.onnx", server.url("/model").toString()),
+                    ModelDownload("tokens.txt", server.url("/tokens").toString()),
+                ),
+                capabilities = AsrCapabilities(false, false, false, false, true, 30_000L),
+            )
+
+            assertTrue(manager.download(catalogModel) is ModelAssetResult.Installed)
+            assertEquals(ModelInstallState.READY, store.inspect(manifest, fullHash = true).state)
+
+            val exported = ByteArrayOutputStream()
+            assertTrue(
+                manager.exportModel(manifest, outputProvider = { exported }) is
+                    ModelAssetResult.Exported,
+            )
+            val entries = linkedMapOf<String, ByteArray>()
+            ZipInputStream(ByteArrayInputStream(exported.toByteArray())).use { zip ->
+                while (true) {
+                    val entry = zip.nextEntry ?: break
+                    entries[entry.name] = zip.readBytes()
+                }
+            }
+            assertArrayEquals(modelBytes, entries["model.int8.onnx"])
+            assertArrayEquals(tokensBytes, entries["tokens.txt"])
+
+            val importedManager = ModelAssetManager(newStore("bundle-import"), OkHttpClient())
+            val imported = importedManager.importModel(
+                manifest,
+                inputProvider = { ByteArrayInputStream(exported.toByteArray()) },
+            )
+            assertTrue(imported is ModelAssetResult.Installed)
+        } finally {
+            server.shutdown()
+        }
+    }
+
     private fun newStore(name: String): FileModelStore =
         FileModelStore(temporaryFolder.newFolder(name).toPath())
 
@@ -130,5 +185,24 @@ class ModelAssetManagerTest {
             .digest(bytes)
             .joinToString("") { "%02x".format(it) },
         engineVersion = "test-engine",
+    )
+
+    private fun bundleManifest(model: ByteArray, tokens: ByteArray): ModelManifest = ModelManifest(
+        modelId = "bundle-test",
+        version = "v1",
+        files = listOf(
+            fileManifest("model.int8.onnx", model),
+            fileManifest("tokens.txt", tokens),
+        ),
+        engineVersion = "test-sherpa",
+        entryFile = "model.int8.onnx",
+    )
+
+    private fun fileManifest(path: String, bytes: ByteArray) = ModelFileManifest(
+        relativePath = path,
+        expectedBytes = bytes.size.toLong(),
+        sha256 = MessageDigest.getInstance("SHA-256")
+            .digest(bytes)
+            .joinToString("") { "%02x".format(it) },
     )
 }

@@ -81,7 +81,6 @@ import androidx.compose.ui.unit.dp
 import com.nanzhufeng.transcriber.R
 import com.nanzhufeng.transcriber.data.modelstore.OfficialModelCatalog
 import com.nanzhufeng.transcriber.data.task.TranscriptionTaskEntity
-import com.nanzhufeng.transcriber.data.task.TranscriptionOutputFormat
 import com.nanzhufeng.transcriber.domain.model.ModelInstallState
 import com.nanzhufeng.transcriber.domain.task.TranscriptionTaskState
 import com.nanzhufeng.transcriber.domain.task.TaskSelectionPolicy
@@ -109,7 +108,7 @@ fun HomeScreen(
     onStart: () -> Unit,
     onTogglePendingSource: (String) -> Unit,
     onRemovePendingSource: (String) -> Unit,
-    onUpdatePendingOptions: (String, String, String?, TranscriptionOutputFormat) -> Unit,
+    onUpdatePendingOptions: (String, String) -> Unit,
     onToggleTaskSelection: (String) -> Unit,
     onSelectAllStartable: (Boolean) -> Unit,
     onRetryTask: (String) -> Unit,
@@ -266,7 +265,7 @@ private fun WorkflowOverview(state: TranscriptionUiState, tasks: List<Transcript
             StatusMetric(
                 icon = Icons.Filled.CheckCircle,
                 label = "模型",
-                value = if (state.modelState == ModelInstallState.READY) "已缓存" else "待下载",
+                value = if (!state.modelRequiresLocalCache) "云端直转" else if (state.modelState == ModelInstallState.READY) "已缓存" else "待下载",
                 color = if (state.modelState == ModelInstallState.READY) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
             )
             StatusMetric(Icons.Filled.Downloading, "进行中", activeCount.toString(), MaterialTheme.colorScheme.primary)
@@ -303,7 +302,7 @@ private fun CurrentWorkCard(
     onDeleteTask: (String) -> Unit,
     onTogglePendingSource: (String) -> Unit,
     onRemovePendingSource: (String) -> Unit,
-    onUpdatePendingOptions: (String, String, String?, TranscriptionOutputFormat) -> Unit,
+    onUpdatePendingOptions: (String, String) -> Unit,
     onToggleTaskSelection: (String) -> Unit,
     onSelectAllStartable: (Boolean) -> Unit,
     onStart: () -> Unit,
@@ -314,8 +313,8 @@ private fun CurrentWorkCard(
         PendingSourceOptionsDialog(
             source = source,
             onDismiss = { editingSource = null },
-            onSave = { modelId, language, outputFormat ->
-                onUpdatePendingOptions(source.key, modelId, language, outputFormat)
+            onSave = { modelId ->
+                onUpdatePendingOptions(source.key, modelId)
                 editingSource = null
             },
         )
@@ -505,11 +504,14 @@ private fun PendingSourceRow(
 private fun PendingSourceOptionsDialog(
     source: PendingSourceUi,
     onDismiss: () -> Unit,
-    onSave: (String, String?, TranscriptionOutputFormat) -> Unit,
+    onSave: (String) -> Unit,
 ) {
-    var modelId by rememberSaveable(source.key) { mutableStateOf(source.modelId) }
-    var languageKey by rememberSaveable(source.key) { mutableStateOf(source.language ?: "auto") }
-    var outputName by rememberSaveable(source.key) { mutableStateOf(source.outputFormat.name) }
+    var modelId by rememberSaveable(source.key) {
+        mutableStateOf(
+            source.modelId.takeIf { OfficialModelCatalog.find(it) != null }
+                ?: requireNotNull(OfficialModelCatalog.find("sensevoice-small-int8")).manifest.modelId,
+        )
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("单项转写设置") },
@@ -524,36 +526,15 @@ private fun PendingSourceOptionsDialog(
                 QueueSelectionField(
                     label = "转写模型",
                     selectedValue = modelId,
-                    options = OfficialModelCatalog.candidates.map { it.manifest.modelId to it.displayName },
+                    options = OfficialModelCatalog.modelSelectionCandidates.map { it.manifest.modelId to it.displayName },
                     onSelected = { modelId = it },
-                )
-                QueueSelectionField(
-                    label = "识别语言",
-                    selectedValue = languageKey,
-                    options = listOf("auto" to "自动识别", "zh" to "中文", "en" to "英语"),
-                    onSelected = { languageKey = it },
-                )
-                QueueSelectionField(
-                    label = "默认输出格式",
-                    selectedValue = outputName,
-                    options = TranscriptionOutputFormat.entries.map { it.name to it.name },
-                    onSelected = { outputName = it },
-                )
-                Text(
-                    "该设置只影响当前文件；未缓存的模型需先在设置页准备。",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         },
         confirmButton = {
             Button(
                 onClick = {
-                    onSave(
-                        modelId,
-                        languageKey.takeUnless { it == "auto" },
-                        TranscriptionOutputFormat.valueOf(outputName),
-                    )
+                    onSave(modelId)
                 },
             ) { Text("保存") }
         },
@@ -661,17 +642,33 @@ private fun TranscriptionQueueRow(
                         cacheTaskId = task.id,
                         modifier = Modifier.fillMaxSize(),
                     )
-                    IconButton(
-                        onClick = onToggleSelection,
-                        enabled = selectable,
-                        modifier = Modifier.align(Alignment.TopStart).size(30.dp).clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.88f)),
-                    ) {
+                    if (active) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.Center)
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .background(Color.White.copy(alpha = 0.88f)),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Downloading,
+                                contentDescription = taskStateLabel(state),
+                                tint = color,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
+                    } else {
+                        IconButton(
+                            onClick = onToggleSelection,
+                            enabled = selectable,
+                            modifier = Modifier.align(Alignment.TopStart).size(30.dp).clip(CircleShape)
+                                .background(Color.White.copy(alpha = 0.88f)),
+                        ) {
                         Icon(
                             imageVector = when {
                                 selectable && selected -> Icons.Filled.CheckCircle
                                 selectable -> Icons.Filled.RadioButtonUnchecked
-                                active -> Icons.Filled.Downloading
                                 state in setOf(
                                     TranscriptionTaskState.FAILED,
                                     TranscriptionTaskState.RECOVERY_REQUIRED,
@@ -688,6 +685,7 @@ private fun TranscriptionQueueRow(
                             tint = if (selectable && selected) MaterialTheme.colorScheme.primary else color,
                             modifier = Modifier.size(21.dp),
                         )
+                        }
                     }
                 }
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {

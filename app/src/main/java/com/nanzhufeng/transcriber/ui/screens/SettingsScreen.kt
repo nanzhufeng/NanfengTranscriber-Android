@@ -1,6 +1,11 @@
 package com.nanzhufeng.transcriber.ui.screens
 
 import android.net.Uri
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -19,27 +24,36 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Switch
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.nanzhufeng.transcriber.BuildConfig
 import com.nanzhufeng.transcriber.data.modelstore.OfficialModelCatalog
 import com.nanzhufeng.transcriber.data.settings.TranscriptionSettings
 import com.nanzhufeng.transcriber.data.task.OutputConflictPolicy
+import com.nanzhufeng.transcriber.domain.invocation.AsrInvocationRecord
 import com.nanzhufeng.transcriber.domain.model.ModelInstallState
 import com.nanzhufeng.transcriber.ui.TranscriptionUiState
 import com.nanzhufeng.transcriber.ui.components.SectionHeading
@@ -63,16 +77,22 @@ fun SettingsScreen(
     onModelChanged: (String) -> Unit,
     onLanguageChanged: (String?) -> Unit,
     onThreadCountChanged: (Int) -> Unit,
-    onKeepScreenOnChanged: (Boolean) -> Unit,
     onChooseOutputDirectory: () -> Unit,
     onClearOutputDirectory: () -> Unit,
     onConflictPolicyChanged: (OutputConflictPolicy) -> Unit,
-    onPostProcessEnabledChanged: (Boolean) -> Unit,
-    onSavePostProcessConnection: (String, String) -> Unit,
     onSavePostProcessApiKey: (String) -> Unit,
-    onClearPostProcessApiKey: () -> Unit,
+    onRevealPostProcessApiKey: () -> Unit,
     onSkinChanged: (String) -> Unit,
+    invocationRecords: List<AsrInvocationRecord>,
 ) {
+    var showingInvocationHistory by rememberSaveable { mutableStateOf(false) }
+    if (showingInvocationHistory) {
+        AsrInvocationHistoryScreen(
+            records = invocationRecords,
+            onBack = { showingInvocationHistory = false },
+        )
+        return
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -112,15 +132,14 @@ fun SettingsScreen(
                         onModelChanged = onModelChanged,
                         onLanguageChanged = onLanguageChanged,
                         onThreadCountChanged = onThreadCountChanged,
-                        onKeepScreenOnChanged = onKeepScreenOnChanged,
                         onChooseOutputDirectory = onChooseOutputDirectory,
                         onClearOutputDirectory = onClearOutputDirectory,
                         onConflictPolicyChanged = onConflictPolicyChanged,
-                        onPostProcessEnabledChanged = onPostProcessEnabledChanged,
-                        onSavePostProcessConnection = onSavePostProcessConnection,
                         onSavePostProcessApiKey = onSavePostProcessApiKey,
-                        onClearPostProcessApiKey = onClearPostProcessApiKey,
+                        onRevealPostProcessApiKey = onRevealPostProcessApiKey,
                         onSkinChanged = onSkinChanged,
+                        invocationRecords = invocationRecords,
+                        onOpenInvocationHistory = { showingInvocationHistory = true },
                     )
                 }
             }
@@ -147,15 +166,14 @@ fun SettingsScreen(
                         onModelChanged = onModelChanged,
                         onLanguageChanged = onLanguageChanged,
                         onThreadCountChanged = onThreadCountChanged,
-                        onKeepScreenOnChanged = onKeepScreenOnChanged,
                         onChooseOutputDirectory = onChooseOutputDirectory,
                         onClearOutputDirectory = onClearOutputDirectory,
                         onConflictPolicyChanged = onConflictPolicyChanged,
-                        onPostProcessEnabledChanged = onPostProcessEnabledChanged,
-                        onSavePostProcessConnection = onSavePostProcessConnection,
                         onSavePostProcessApiKey = onSavePostProcessApiKey,
-                        onClearPostProcessApiKey = onClearPostProcessApiKey,
+                        onRevealPostProcessApiKey = onRevealPostProcessApiKey,
                         onSkinChanged = onSkinChanged,
+                        invocationRecords = invocationRecords,
+                        onOpenInvocationHistory = { showingInvocationHistory = true },
                     )
                 }
             }
@@ -176,32 +194,45 @@ private fun SettingsModuleCard(
     onModelChanged: (String) -> Unit,
     onLanguageChanged: (String?) -> Unit,
     onThreadCountChanged: (Int) -> Unit,
-    onKeepScreenOnChanged: (Boolean) -> Unit,
     onChooseOutputDirectory: () -> Unit,
     onClearOutputDirectory: () -> Unit,
     onConflictPolicyChanged: (OutputConflictPolicy) -> Unit,
-    onPostProcessEnabledChanged: (Boolean) -> Unit,
-    onSavePostProcessConnection: (String, String) -> Unit,
     onSavePostProcessApiKey: (String) -> Unit,
-    onClearPostProcessApiKey: () -> Unit,
+    onRevealPostProcessApiKey: () -> Unit,
     onSkinChanged: (String) -> Unit,
+    invocationRecords: List<AsrInvocationRecord>,
+    onOpenInvocationHistory: () -> Unit,
 ) {
     when (module) {
-        SettingsModule.MODEL -> ModelAndStorageCard(
-            state = state,
+        SettingsModule.MODEL -> ModelSelectionCard(
             selectedModelId = settings.modelId,
-            onDownloadModel = onDownloadModel,
-            onImportModel = onImportModel,
-            onExportModel = onExportModel,
-            onVerifyModel = onVerifyModel,
-            onDeleteModel = onDeleteModel,
+            isBusy = state.isBusy,
             onModelChanged = onModelChanged,
         )
+        SettingsModule.MODEL_DETAILS -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            ModelDetailsCard(
+                state = state,
+                settings = settings,
+                selectedModelId = settings.modelId,
+                onDownloadModel = onDownloadModel,
+                onImportModel = onImportModel,
+                onExportModel = onExportModel,
+                onVerifyModel = onVerifyModel,
+                onDeleteModel = onDeleteModel,
+                onSaveApiKey = onSavePostProcessApiKey,
+                onRevealApiKey = onRevealPostProcessApiKey,
+            )
+            if (OfficialModelCatalog.find(settings.modelId)?.requiresLocalCache == false) {
+                AsrInvocationLedgerEntry(
+                    records = invocationRecords,
+                    onOpen = onOpenInvocationHistory,
+                )
+            }
+        }
         SettingsModule.TRANSCRIPTION -> TranscriptionSettingsCard(
             settings = settings,
             onLanguageChanged = onLanguageChanged,
             onThreadCountChanged = onThreadCountChanged,
-            onKeepScreenOnChanged = onKeepScreenOnChanged,
         )
         SettingsModule.OUTPUT -> OutputSettingsCard(
             settings = settings,
@@ -209,98 +240,128 @@ private fun SettingsModuleCard(
             onClearOutputDirectory = onClearOutputDirectory,
             onConflictPolicyChanged = onConflictPolicyChanged,
         )
-        SettingsModule.POST_PROCESSING -> PostProcessSettingsCard(
-            settings = settings,
-            onEnabledChanged = onPostProcessEnabledChanged,
-            onSaveConnection = onSavePostProcessConnection,
-            onSaveApiKey = onSavePostProcessApiKey,
-            onClearApiKey = onClearPostProcessApiKey,
-        )
         SettingsModule.APPEARANCE -> AppearanceCard(settings, onSkinChanged)
         SettingsModule.PRIVACY -> PrivacyCard(state, settings)
     }
 }
 
 @Composable
-private fun PostProcessSettingsCard(
+private fun HighAccuracyServiceCard(
     settings: TranscriptionSettings,
-    onEnabledChanged: (Boolean) -> Unit,
-    onSaveConnection: (String, String) -> Unit,
+    state: TranscriptionUiState,
     onSaveApiKey: (String) -> Unit,
-    onClearApiKey: () -> Unit,
+    onRevealApiKey: () -> Unit,
 ) {
-    var baseUrl by remember(settings.postProcessBaseUrl) { mutableStateOf(settings.postProcessBaseUrl) }
-    var model by remember(settings.postProcessModel) { mutableStateOf(settings.postProcessModel) }
-    var apiKey by remember { mutableStateOf("") }
-    WorkbenchCard(modifier = Modifier.fillMaxWidth()) {
-        SectionHeading(
-            title = "翻译与润色",
-            color = AttentionOchre,
-        )
-        Spacer(Modifier.height(10.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text(
-                "完成后整理为现代简体中文",
-                modifier = Modifier.weight(1f),
-                fontWeight = FontWeight.SemiBold,
-            )
-            Switch(
-                checked = settings.postProcessEnabled,
-                onCheckedChange = onEnabledChanged,
-                enabled = settings.postProcessApiKeyConfigured,
-            )
+    // 与南枫 AI 一致：已保存凭据先显示固定长度掩码；只有点眼睛才解密回填。
+    val savedKeyMask = "••••••••••••••••••••••••••••••••"
+    var apiKey by remember(settings.postProcessApiKeyConfigured) {
+        mutableStateOf(if (settings.postProcessApiKeyConfigured) savedKeyMask else "")
+    }
+    var apiKeyEdited by remember(settings.postProcessApiKeyConfigured) { mutableStateOf(false) }
+    var apiKeyVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(state.revealedPostProcessApiKey) {
+        if (!apiKeyEdited && state.revealedPostProcessApiKey != null) {
+            apiKey = state.revealedPostProcessApiKey
+            apiKeyVisible = true
         }
-        Spacer(Modifier.height(10.dp))
-        OutlinedTextField(
-            value = baseUrl,
-            onValueChange = { baseUrl = it },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            label = { Text("兼容服务地址（HTTPS）") },
-        )
-        Spacer(Modifier.height(8.dp))
-        OutlinedTextField(
-            value = model,
-            onValueChange = { model = it },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            label = { Text("服务模型名") },
-        )
-        OutlinedButton(
-            onClick = { onSaveConnection(baseUrl, model) },
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-        ) { Text("保存接口设置") }
-        Spacer(Modifier.height(8.dp))
+    }
+    WorkbenchCard(modifier = Modifier.fillMaxWidth()) {
+        Spacer(Modifier.height(2.dp))
+        SettingValueRow("转写模型", "Qwen3-ASR")
         OutlinedTextField(
             value = apiKey,
-            onValueChange = { apiKey = it },
-            modifier = Modifier.fillMaxWidth(),
+            onValueChange = { input ->
+                apiKey = if (!apiKeyEdited && input.startsWith(savedKeyMask)) {
+                    input.removePrefix(savedKeyMask)
+                } else {
+                    input
+                }
+                apiKeyEdited = true
+            },
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             singleLine = true,
-            visualTransformation = PasswordVisualTransformation(),
-            label = { Text(if (settings.postProcessApiKeyConfigured) "输入新 API Key 以替换" else "API Key") },
-            placeholder = {
-                if (settings.postProcessApiKeyConfigured) Text("已加密保存，界面不会回显")
+            visualTransformation = if (apiKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
+            label = { Text("千问 API Key") },
+            trailingIcon = {
+                IconButton(onClick = {
+                    if (apiKeyVisible) {
+                        apiKeyVisible = false
+                    } else if (!apiKeyEdited && settings.postProcessApiKeyConfigured) {
+                        onRevealApiKey()
+                    } else {
+                        apiKeyVisible = true
+                    }
+                }) {
+                    Icon(
+                        imageVector = if (apiKeyVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                        contentDescription = if (apiKeyVisible) "隐藏 API Key" else "显示 API Key",
+                    )
+                }
             },
         )
         Button(
             onClick = {
                 onSaveApiKey(apiKey)
-                apiKey = ""
+                apiKey = savedKeyMask
+                apiKeyEdited = false
+                apiKeyVisible = false
             },
-            enabled = apiKey.isNotBlank(),
+            enabled = apiKeyEdited && apiKey.isNotBlank(),
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-        ) { Text(if (settings.postProcessApiKeyConfigured) "替换 API Key" else "加密保存 API Key") }
-        if (settings.postProcessApiKeyConfigured) {
-            TextButton(onClick = onClearApiKey, modifier = Modifier.align(Alignment.End)) {
-                Text("删除本机 API Key", color = MaterialTheme.colorScheme.error)
-            }
+        ) { Text("保存 API Key") }
+    }
+}
+
+@Composable
+private fun ModelSelectionCard(
+    selectedModelId: String,
+    isBusy: Boolean,
+    onModelChanged: (String) -> Unit,
+) {
+    WorkbenchCard(modifier = Modifier.fillMaxWidth()) {
+        SectionHeading(title = "转写模型")
+        Spacer(Modifier.height(10.dp))
+        OfficialModelCatalog.modelSelectionCandidates.forEach { model ->
+            ModelChoiceRow(
+                label = model.displayName,
+                selected = model.manifest.modelId == selectedModelId,
+                enabled = !isBusy,
+                onClick = { onModelChanged(model.manifest.modelId) },
+            )
         }
-        SettingValueRow("凭据保护", "Android Keystore")
-        SettingValueRow("调用费用", "由所选服务平台收取")
+    }
+}
+
+@Composable
+private fun ModelDetailsCard(
+    state: TranscriptionUiState,
+    settings: TranscriptionSettings,
+    selectedModelId: String,
+    onDownloadModel: () -> Unit,
+    onImportModel: () -> Unit,
+    onExportModel: () -> Unit,
+    onVerifyModel: () -> Unit,
+    onDeleteModel: () -> Unit,
+    onSaveApiKey: (String) -> Unit,
+    onRevealApiKey: () -> Unit,
+) {
+    val selectedModel = OfficialModelCatalog.find(selectedModelId) ?: return
+    if (selectedModel.requiresLocalCache) {
+        ModelCacheCard(
+            state = state,
+            onDownloadModel = onDownloadModel,
+            onImportModel = onImportModel,
+            onExportModel = onExportModel,
+            onVerifyModel = onVerifyModel,
+            onDeleteModel = onDeleteModel,
+        )
+    } else {
+        HighAccuracyServiceCard(
+            settings = settings,
+            state = state,
+            onSaveApiKey = onSaveApiKey,
+            onRevealApiKey = onRevealApiKey,
+        )
     }
 }
 
@@ -343,15 +404,13 @@ private fun OutputSettingsCard(
 }
 
 @Composable
-private fun ModelAndStorageCard(
+private fun ModelCacheCard(
     state: TranscriptionUiState,
-    selectedModelId: String,
     onDownloadModel: () -> Unit,
     onImportModel: () -> Unit,
     onExportModel: () -> Unit,
     onVerifyModel: () -> Unit,
     onDeleteModel: () -> Unit,
-    onModelChanged: (String) -> Unit,
 ) {
     var showDeleteConfirmation by remember { mutableStateOf(false) }
     if (showDeleteConfirmation) {
@@ -382,24 +441,22 @@ private fun ModelAndStorageCard(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 SectionHeading(
-                    title = "模型与缓存",
+                    title = "模型缓存",
                 )
             }
             StatusPill(
-                text = if (state.modelState == ModelInstallState.READY) "已就绪" else "待准备",
-                color = if (state.modelState == ModelInstallState.READY) MaterialTheme.colorScheme.primary else AttentionOchre,
+                text = if (state.modelState == ModelInstallState.READY) {
+                    "已就绪"
+                } else {
+                    "待准备"
+                },
+                color = if (state.modelState == ModelInstallState.READY) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    AttentionOchre
+                },
             )
         }
-        Spacer(Modifier.height(12.dp))
-        SelectionField(
-            label = "转写模型",
-            selectedValue = selectedModelId,
-            selectedLabel = OfficialModelCatalog.find(selectedModelId)?.displayName
-                ?: OfficialModelCatalog.candidates.first().displayName,
-            options = OfficialModelCatalog.candidates.map { it.manifest.modelId to it.displayName },
-            enabled = !state.isBusy,
-            onSelected = onModelChanged,
-        )
         Spacer(Modifier.height(10.dp))
         SettingValueRow("本模型大小", formatBytes(state.modelExpectedBytes))
         SettingValueRow("当前占用", formatBytes(state.modelCacheBytes))
@@ -451,11 +508,48 @@ private fun ModelAndStorageCard(
 }
 
 @Composable
+private fun ModelChoiceRow(
+    label: String,
+    selected: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 6.dp)
+            .clickable(
+                enabled = enabled,
+                role = Role.RadioButton,
+                onClick = onClick,
+            ),
+        shape = RoundedCornerShape(14.dp),
+        color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+        border = BorderStroke(
+            width = 1.dp,
+            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+        ),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            RadioButton(selected = selected, onClick = null, enabled = enabled)
+            Text(
+                text = label,
+                modifier = Modifier.padding(start = 8.dp),
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+            )
+        }
+    }
+}
+
+@Composable
 private fun TranscriptionSettingsCard(
     settings: TranscriptionSettings,
     onLanguageChanged: (String?) -> Unit,
     onThreadCountChanged: (Int) -> Unit,
-    onKeepScreenOnChanged: (Boolean) -> Unit,
 ) {
     WorkbenchCard(modifier = Modifier.fillMaxWidth()) {
         SectionHeading(
@@ -479,24 +573,6 @@ private fun TranscriptionSettingsCard(
             options = listOf(0, 2, 4, 6, 8).map { it.toString() to threadLabel(it) },
             onSelected = { onThreadCountChanged(it.toInt()) },
         )
-        SettingValueRow("推理后端", "CPU 稳定模式")
-        SettingValueRow("GPU 加速", "暂不可用")
-        Spacer(Modifier.height(10.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text(
-                "转写时保持屏幕常亮",
-                modifier = Modifier.weight(1f),
-                fontWeight = FontWeight.SemiBold,
-            )
-            Switch(
-                checked = settings.keepScreenOn,
-                onCheckedChange = onKeepScreenOnChanged,
-            )
-        }
     }
 }
 
@@ -586,9 +662,20 @@ private fun PrivacyCard(state: TranscriptionUiState, settings: TranscriptionSett
         Spacer(Modifier.height(10.dp))
         SettingValueRow(
             "网络用途",
-            if (settings.postProcessEnabled) "下载模型；发送转写文字用于润色" else "仅下载所选模型",
+            if (OfficialModelCatalog.find(settings.modelId)?.requiresLocalCache == false) {
+                "千问高精度转写"
+            } else {
+                "下载或更新本地模型"
+            },
         )
-        SettingValueRow("音视频上传", "不会上传")
+        SettingValueRow(
+            "音视频上传",
+            if (OfficialModelCatalog.find(settings.modelId)?.requiresLocalCache == false) {
+                "仅当前高精度模式发送音频片段至千问"
+            } else {
+                "本地模型模式不会上传"
+            },
+        )
         SettingValueRow("App 版本", BuildConfig.VERSION_NAME)
         SettingValueRow("本机引擎", state.nativeStatus)
     }
@@ -629,7 +716,14 @@ private fun modelStateText(state: ModelInstallState): String = when (state) {
 
 private fun threadLabel(count: Int): String = if (count == 0) "自动（推荐）" else "$count 线程"
 
-private enum class SettingsModule { APPEARANCE, MODEL, TRANSCRIPTION, OUTPUT, POST_PROCESSING, PRIVACY }
+private enum class SettingsModule {
+    APPEARANCE,
+    MODEL,
+    MODEL_DETAILS,
+    TRANSCRIPTION,
+    OUTPUT,
+    PRIVACY,
+}
 
 private enum class LanguageOption(val label: String, val code: String?) {
     AUTO("自动识别", null),

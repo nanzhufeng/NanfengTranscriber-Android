@@ -16,6 +16,7 @@ import kotlin.math.roundToInt
 enum class HistoryMediaKind {
     VIDEO,
     AUDIO,
+    IMAGE,
     UNKNOWN,
 }
 
@@ -33,10 +34,10 @@ class HistoryMediaPreviewStore(private val context: Context) {
         stagedSourcePath: Path?,
         displayName: String,
     ): Path? {
-        if (classifyHistoryMedia(displayName, runCatching {
+        val kind = classifyHistoryMedia(displayName, runCatching {
                 context.contentResolver.getType(sourceUri)
-            }.getOrNull()) != HistoryMediaKind.VIDEO
-        ) {
+            }.getOrNull())
+        if (kind !in setOf(HistoryMediaKind.VIDEO, HistoryMediaKind.IMAGE)) {
             return null
         }
         val target = thumbnailPath(taskId)
@@ -44,7 +45,11 @@ class HistoryMediaPreviewStore(private val context: Context) {
 
         return runCatching {
             Files.createDirectories(target.parent)
-            val thumbnail = extractVideoThumbnail(sourceUri, stagedSourcePath, displayName)
+            val thumbnail = when (kind) {
+                HistoryMediaKind.VIDEO -> extractVideoThumbnail(sourceUri, stagedSourcePath, displayName)
+                HistoryMediaKind.IMAGE -> extractImageThumbnail(sourceUri, stagedSourcePath)
+                else -> null
+            }
                 ?: return@runCatching null
             val part = target.resolveSibling("${target.fileName}.part")
             Files.newOutputStream(part).use { output ->
@@ -71,7 +76,13 @@ class HistoryMediaPreviewStore(private val context: Context) {
         sourceUri: Uri,
         stagedSourcePath: Path?,
         displayName: String,
-    ): Bitmap? = extractVideoThumbnail(sourceUri, stagedSourcePath, displayName)
+    ): Bitmap? = when (classifyHistoryMedia(displayName, runCatching {
+        context.contentResolver.getType(sourceUri)
+    }.getOrNull())) {
+        HistoryMediaKind.VIDEO -> extractVideoThumbnail(sourceUri, stagedSourcePath, displayName)
+        HistoryMediaKind.IMAGE -> extractImageThumbnail(sourceUri, stagedSourcePath)
+        else -> null
+    }
 
     fun loadThumbnail(taskId: String): Bitmap? {
         val path = thumbnailPath(taskId)
@@ -127,6 +138,17 @@ class HistoryMediaPreviewStore(private val context: Context) {
         }.getOrNull()
     }
 
+    private fun extractImageThumbnail(sourceUri: Uri, stagedSourcePath: Path?): Bitmap? = runCatching {
+        val bitmap = if (stagedSourcePath != null && Files.isRegularFile(stagedSourcePath)) {
+            BitmapFactory.decodeFile(stagedSourcePath.toString())
+        } else {
+            context.contentResolver.openInputStream(sourceUri)?.use { input -> BitmapFactory.decodeStream(input) }
+        } ?: return@runCatching null
+        val thumbnail = bitmap.scaledWithin(MAX_WIDTH, MAX_HEIGHT)
+        if (thumbnail !== bitmap) bitmap.recycle()
+        thumbnail
+    }.getOrNull()
+
     private fun Bitmap.scaledWithin(maxWidth: Int, maxHeight: Int): Bitmap {
         val scale = min(maxWidth.toFloat() / width, maxHeight.toFloat() / height).coerceAtMost(1f)
         if (scale >= 1f) return this
@@ -148,11 +170,14 @@ class HistoryMediaPreviewStore(private val context: Context) {
 internal fun classifyHistoryMedia(displayName: String, mimeType: String?): HistoryMediaKind {
     if (mimeType?.startsWith("video/") == true) return HistoryMediaKind.VIDEO
     if (mimeType?.startsWith("audio/") == true) return HistoryMediaKind.AUDIO
+    if (mimeType?.startsWith("image/") == true) return HistoryMediaKind.IMAGE
     return when (displayName.substringAfterLast('.', missingDelimiterValue = "").lowercase()) {
         "mp4", "m4v", "mov", "mkv", "webm", "avi", "3gp", "ts", "mts", "m2ts" ->
             HistoryMediaKind.VIDEO
         "mp3", "m4a", "aac", "wav", "flac", "ogg", "opus", "amr", "wma" ->
             HistoryMediaKind.AUDIO
+        "avif", "bmp", "gif", "heic", "heif", "jpeg", "jpg", "png", "webp" ->
+            HistoryMediaKind.IMAGE
         else -> HistoryMediaKind.UNKNOWN
     }
 }

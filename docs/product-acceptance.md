@@ -2,7 +2,7 @@
 
 日期：2026-07-21
 
-状态：未完成，开发暂时搁置。版本 15 自动与模拟器验收通过，但转写准确度不足，最终 Find N5 发布门禁未全通过。
+状态：未完成。模型架构已按三档收敛；最终 Find N5 发布门禁未执行。
 
 ## 1. 第一用户任务
 
@@ -15,7 +15,8 @@
 
 | 概念 | 唯一所有者 | 禁止分叉 |
 | --- | --- | --- |
-| 模型磁盘资产 | `ModelAssetManager` + `FileModelStore` | UI 不自行判定文件可用，不重复下载 |
+| 本地模型资产 | `ModelAssetManager` + `FileModelStore` | 仅 SenseVoice/Whisper 使用；UI 不自行判定文件可用，不重复下载 |
+| 云端高精度模型 | `Qwen3AsrApiEngine` | 不伪装成本地缓存或转写后润色 |
 | 转写任务真相 | Room v4 | 主页和历史不保存平行状态 |
 | 后台执行 | `TranscriptionForegroundService` + `:transcription` | WorkManager 不承担两小时主任务 |
 | 字幕与 ASR 路由 | 后端 runner | UI 不在字幕预检前强制要求模型 |
@@ -40,22 +41,22 @@
 
 ## 5. 账号、权限与费用
 
-- 本地转写无登录、无 API Key、音视频不上传。
-- 兼容文字润色默认关闭；只有用户主动配置时才发送转写文字，API Key 用 Keystore AES-GCM 加密且不进备份。
+- SenseVoice 与 Whisper 是本地转写：无登录、无 API Key、音视频不上传。
+- Qwen3-ASR 是用户主动选择的云端高精度转写：模型切换立即生效，开始任务后才向千问发送转写所需的音频分段，可能收费。API Key 用 Keystore AES-GCM 加密且不进备份；设置页不显示服务地址或自由模型输入。
 - 用户拒绝通知或文件权限时必须有可恢复中文提示；不得用卸载/清数据作为解决方案。
 
 ## 6. 真实链路与验证等级
 
 - [x] 领域契约与入口契约。
 - [x] 45 项 JVM、Debug lint、Release vital lint、Debug/Release 构建。
-- [x] API 35 专用模拟器 8/8 instrumentation。
+- [ ] 当前工作树不运行 instrumentation；永久禁止 `connected*AndroidTest`。
 - [x] 真实 8 秒 MP4 在无模型状态完成 3 段字幕提取、历史、媒体/文字同屏和四格式落盘。
 - [x] 真实无字幕 WAV 在无模型状态可启动预检，随后转为可恢复的“等待模型”，不误报失败或完成。
 - [x] 版本 14 Find N5 后台转写自然完成、历史媒体核对和复制全部。
 - [ ] 版本 15 Find N5 同签名覆盖、数据/模型保留和四格式真机落盘。
 - [ ] Find N5 系统杀进程分块恢复闭环。
 - [ ] 60 分钟与接近 2 小时稳定性、峰值内存、温度和最终导出。
-- [ ] 三档模型同素材中英混合 CER/WER/术语保留率基准。
+- [ ] SenseVoice、Qwen3-ASR API 与 Whisper Small 同素材中英混合 CER/WER/术语保留率基准。
 
 ## 7. 响应式和交付
 

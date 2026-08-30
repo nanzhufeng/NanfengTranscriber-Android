@@ -15,33 +15,27 @@ class AndroidTranscriptOutputStore(
 ) {
     fun export(
         treeUri: Uri,
-        taskId: String,
         sourceDisplayName: String,
         document: TranscriptDocument,
         format: TranscriptExportFormat,
         conflictPolicy: OutputConflictPolicy,
     ): AutomaticExportResult {
         val safeBase = safeBaseName(sourceDisplayName)
-        val directoryName = "${safeBase.take(48)}-${taskId.take(8)}"
-        val taskDirectory = findChild(treeUri, directoryName, directory = true)
-            ?: DocumentsContract.createDocument(
-                resolver,
-                treeUri,
-                DocumentsContract.Document.MIME_TYPE_DIR,
-                directoryName,
-            )
-            ?: throw IOException("系统未能创建单项结果目录")
+        // ColorOS documents providers reject createDocument() when the raw tree URI is passed as
+        // a parent. Resolve its document form first, then write directly into the user-selected
+        // folder. This also fulfils the export contract: no surprise task subfolder or second UI.
+        val outputDirectory = rootDocumentUri(treeUri)
 
         val extension = format.extension
         val requestedName = "$safeBase.$extension"
-        val existing = findChild(taskDirectory, requestedName, directory = false)
+        val existing = findChild(outputDirectory, requestedName, directory = false)
         val target = when {
-            existing == null -> createFile(taskDirectory, requestedName, format.mimeType)
+            existing == null -> createFile(outputDirectory, requestedName, format.mimeType)
             conflictPolicy == OutputConflictPolicy.SKIP -> {
                 return AutomaticExportResult.Skipped(existing, "目标文件已存在，已按设置跳过")
             }
             conflictPolicy == OutputConflictPolicy.OVERWRITE -> existing
-            else -> createFile(taskDirectory, nextAvailableName(taskDirectory, safeBase, extension), format.mimeType)
+            else -> createFile(outputDirectory, nextAvailableName(outputDirectory, safeBase, extension), format.mimeType)
         }
         resolver.openOutputStream(target, "wt")?.use { output ->
             exportService.export(document, format, output)
@@ -97,6 +91,15 @@ class AndroidTranscriptOutputStore(
         val raw = sourceDisplayName.substringBeforeLast('.').trim().ifBlank { "南枫转写结果" }
         return raw.replace(INVALID_FILE_CHARACTERS, "_").trim('.', ' ').take(72)
             .ifBlank { "南枫转写结果" }
+    }
+
+    companion object {
+        /** Keeps the tree permission while giving DocumentsContract a valid parent document URI. */
+        internal fun rootDocumentUri(treeUri: Uri): Uri = if (DocumentsContract.isTreeUri(treeUri)) {
+            DocumentsContract.buildDocumentUriUsingTree(treeUri, DocumentsContract.getTreeDocumentId(treeUri))
+        } else {
+            treeUri
+        }
     }
 }
 

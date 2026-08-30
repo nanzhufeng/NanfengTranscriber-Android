@@ -16,6 +16,8 @@ import com.nanzhufeng.transcriber.data.modelstore.ModelAssetResult
 import com.nanzhufeng.transcriber.data.modelstore.ModelTransferStage
 import com.nanzhufeng.transcriber.data.modelstore.OfficialModelCatalog
 import com.nanzhufeng.transcriber.data.modelstore.CatalogModel
+import com.nanzhufeng.transcriber.data.output.AndroidTranscriptOutputStore
+import com.nanzhufeng.transcriber.data.modelstore.AsrProviderId
 import com.nanzhufeng.transcriber.data.result.StoredTranscript
 import com.nanzhufeng.transcriber.data.result.TranscriptDocumentStore
 import com.nanzhufeng.transcriber.data.settings.TranscriptionSettings
@@ -28,6 +30,7 @@ import com.nanzhufeng.transcriber.domain.export.TranscriptDocument
 import com.nanzhufeng.transcriber.domain.export.TranscriptDocumentSegment
 import com.nanzhufeng.transcriber.domain.export.TranscriptExportFormat
 import com.nanzhufeng.transcriber.domain.export.TranscriptExportService
+import com.nanzhufeng.transcriber.domain.invocation.AsrInvocationRecord
 import com.nanzhufeng.transcriber.domain.model.ModelInstallState
 import com.nanzhufeng.transcriber.domain.task.TranscriptionTaskState
 import com.nanzhufeng.transcriber.domain.task.TaskSelectionPolicy
@@ -56,8 +59,9 @@ class TranscriptionViewModel(application: Application) : AndroidViewModel(applic
     private val app = application as NanfengTranscriberApplication
     private val container = app.appContainer
     private val resolver = application.contentResolver
-    private var selectedModel = requireNotNull(OfficialModelCatalog.find("small-q5_1"))
+    private var selectedModel = requireNotNull(OfficialModelCatalog.find("sensevoice-small-int8"))
     private val exportService = TranscriptExportService()
+    private val automaticOutputStore = AndroidTranscriptOutputStore(resolver, exportService)
     private val documentStore = TranscriptDocumentStore()
 
     private val _uiState = MutableStateFlow(
@@ -73,6 +77,8 @@ class TranscriptionViewModel(application: Application) : AndroidViewModel(applic
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val settings: StateFlow<TranscriptionSettings> = container.settings.settings
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TranscriptionSettings())
+    val asrInvocationRecords: StateFlow<List<AsrInvocationRecord>> = container.asrInvocations.observeAll()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private var readyModelPath: Path? = null
     private var selectedSourceUri: Uri? = null
@@ -86,7 +92,12 @@ class TranscriptionViewModel(application: Application) : AndroidViewModel(applic
         viewModelScope.launch {
             container.settings.settings.collect { currentSettings ->
                 val model = OfficialModelCatalog.find(currentSettings.modelId)
-                    ?: requireNotNull(OfficialModelCatalog.find("small-q5_1"))
+                if (model == null) {
+                    // Whisper was removed from the public product catalogue. Persist the supported
+                    // default so every selection surface immediately agrees after upgrade.
+                    container.settings.setModelId("sensevoice-small-int8")
+                    return@collect
+                }
                 if (model.manifest.modelId != selectedModel.manifest.modelId) {
                     selectedModel = model
                     refreshModelState(model)
@@ -114,10 +125,7 @@ class TranscriptionViewModel(application: Application) : AndroidViewModel(applic
                     statusMessage = "正在下载 ${model.displayName}；中断后会从已完成位置继续",
                 )
             }
-            val result = container.modelAssets.download(
-                manifest = model.manifest,
-                url = model.downloadUrl,
-            ) { progress ->
+            val result = container.modelAssets.download(model) { progress ->
                 val fraction = if (progress.totalBytes > 0L) {
                     progress.completedBytes.toFloat() / progress.totalBytes.toFloat()
                 } else {
@@ -295,7 +303,11 @@ class TranscriptionViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
-    fun suggestedModelFileName(): String = "ggml-${selectedModel.manifest.modelId}.bin"
+    fun suggestedModelFileName(): String = if (selectedModel.manifest.files.size == 1) {
+        "ggml-${selectedModel.manifest.modelId}.bin"
+    } else {
+        "nanfeng-${selectedModel.manifest.modelId}.nfmodel"
+    }
 
     fun selectSource(uri: Uri) = selectSources(listOf(uri))
 
@@ -335,7 +347,7 @@ class TranscriptionViewModel(application: Application) : AndroidViewModel(applic
 
         viewModelScope.launch {
             val defaults = settings.value
-            val defaultModel = OfficialModelCatalog.find(defaults.modelId) ?: selectedModel
+        val defaultModel = OfficialModelCatalog.find(defaults.modelId) ?: selectedModel
             val selected = distinctUris.mapNotNull { uri ->
                 runCatching {
                     val persisted = inheritedPersistedAccess || runCatching {
@@ -464,8 +476,6 @@ class TranscriptionViewModel(application: Application) : AndroidViewModel(applic
     fun updatePendingSourceOptions(
         sourceKey: String,
         modelId: String,
-        language: String?,
-        outputFormat: TranscriptionOutputFormat,
     ) {
         val model = OfficialModelCatalog.find(modelId) ?: return
         pendingSources = pendingSources.map { source ->
@@ -473,14 +483,12 @@ class TranscriptionViewModel(application: Application) : AndroidViewModel(applic
                 source.copy(
                     modelId = model.manifest.modelId,
                     modelVersion = model.manifest.version,
-                    language = language,
-                    outputFormat = outputFormat,
                 )
             } else {
                 source
             }
         }
-        updatePendingSourceState("已更新该文件的转写参数")
+        updatePendingSourceState("已更新该文件的转写模型")
     }
 
     fun toggleTaskSelection(taskId: String) {
@@ -521,6 +529,20 @@ class TranscriptionViewModel(application: Application) : AndroidViewModel(applic
         val existingIds = _uiState.value.selectedTaskIds
         if (sources.isEmpty() && existingIds.isEmpty()) return
         viewModelScope.launch {
+            val requeuedTasks = tasks.value.filter { it.id in existingIds }
+            val usesQwenApi = (sources.map(PendingSource::modelId) + requeuedTasks.map(TranscriptionTaskEntity::modelId))
+                .mapNotNull(OfficialModelCatalog::find)
+                .any { it.provider == AsrProviderId.QWEN3_ASR_API }
+            if (usesQwenApi && !withContext(Dispatchers.IO) { container.textApiCredentials.hasApiKey() }) {
+                _uiState.update {
+                    it.copy(
+                        stage = WorkflowStage.IDLE,
+                        progress = null,
+                        statusMessage = "高精度 Qwen 未配置 API Key，请在设置中保存后再开始转写",
+                    )
+                }
+                return@launch
+            }
             val taskSettings = settings.value
             val result = runCatching {
                 withContext(Dispatchers.IO) {
@@ -543,7 +565,7 @@ class TranscriptionViewModel(application: Application) : AndroidViewModel(applic
                                 outputFormat = source.outputFormat,
                                 exportDirectoryUri = taskSettings.defaultOutputDirectoryUri,
                                 outputConflictPolicy = taskSettings.outputConflictPolicy,
-                                postProcessEnabled = taskSettings.postProcessEnabled,
+                                postProcessEnabled = false,
                                 postProcessBaseUrl = taskSettings.postProcessBaseUrl,
                                 postProcessModel = taskSettings.postProcessModel,
                                 queuePosition = queueBase + index,
@@ -747,6 +769,48 @@ class TranscriptionViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
+    /** History-only bulk action. It never touches original media, model cache or exported files. */
+    fun deleteHistoryTasks(taskIds: Set<String>) {
+        if (taskIds.isEmpty()) return
+        viewModelScope.launch {
+            val deletedIds = withContext(Dispatchers.IO) {
+                buildSet {
+                    taskIds.forEach { taskId ->
+                        val task = container.tasks.findById(taskId)
+                            ?.takeIf { taskStateOrNull(it) == TranscriptionTaskState.COMPLETED }
+                            ?: return@forEach
+                        if (runCatching {
+                                cleanupTaskFiles(task)
+                                container.tasks.delete(task.id)
+                            }.getOrDefault(false)
+                        ) {
+                            add(task.id)
+                        }
+                    }
+                }
+            }
+            if (deletedIds.isEmpty()) {
+                _uiState.update { it.copy(statusMessage = "没有可删除的历史记录") }
+                return@launch
+            }
+            executionRequests.removeAll(deletedIds)
+            _uiState.update { current ->
+                current.copy(
+                    historyPreviews = current.historyPreviews - deletedIds,
+                    invalidHistoryTaskIds = current.invalidHistoryTaskIds - deletedIds,
+                    openedResultTaskId = current.openedResultTaskId.takeUnless { it in deletedIds },
+                    transcriptText = if (current.openedResultTaskId in deletedIds) null else current.transcriptText,
+                    statusMessage = "已删除 ${deletedIds.size} 条历史记录，原音视频和已导出文件不受影响",
+                )
+            }
+            Toast.makeText(app, "已删除 ${deletedIds.size} 条历史记录", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun cleanInvalidHistory() {
+        deleteHistoryTasks(_uiState.value.invalidHistoryTaskIds)
+    }
+
     fun focusTask(taskId: String) {
         viewModelScope.launch {
             val task = withContext(Dispatchers.IO) { container.tasks.findById(taskId) } ?: return@launch
@@ -770,9 +834,10 @@ class TranscriptionViewModel(application: Application) : AndroidViewModel(applic
                         } else {
                             workflowStage(task)
                         },
-                        statusMessage = task.userMessage ?: "已打开对应转写任务",
-                    )
-                }
+                    statusMessage = task.userMessage ?: "已打开对应转写任务",
+                    exportFeedback = null,
+                )
+            }
             }
         }
     }
@@ -785,9 +850,31 @@ class TranscriptionViewModel(application: Application) : AndroidViewModel(applic
             ?.let { task -> viewModelScope.launch { requestTaskExecutionOnce(task.id) } }
     }
 
-    fun exportResult(uri: Uri, format: TranscriptExportFormat) {
-        val document = latestDocument ?: return
+    fun exportResultToDefaultDirectory(format: TranscriptExportFormat) {
         if (_uiState.value.isExporting) return
+        val taskId = _uiState.value.openedResultTaskId
+        val task = taskId?.let { id -> tasks.value.firstOrNull { it.id == id } }
+        val document = latestDocument
+        val settingsSnapshot = settings.value
+        val outputDirectory = settingsSnapshot.defaultOutputDirectoryUri
+        if (task == null || document == null) {
+            _uiState.update {
+                it.copy(
+                    statusMessage = "当前完整结果尚未加载，无法导出",
+                    exportFeedback = ExportFeedback("当前完整结果尚未加载，无法导出", ExportFeedbackTone.ERROR),
+                )
+            }
+            return
+        }
+        if (outputDirectory == null) {
+            _uiState.update {
+                it.copy(
+                    statusMessage = "未设置默认输出目录，请先到设置中选择目录",
+                    exportFeedback = ExportFeedback("未设置默认输出目录，请先到设置中选择目录", ExportFeedbackTone.ERROR),
+                )
+            }
+            return
+        }
 
         val exportDocument = if (format == TranscriptExportFormat.SRT) {
             document
@@ -796,45 +883,57 @@ class TranscriptionViewModel(application: Application) : AndroidViewModel(applic
         }
 
         viewModelScope.launch {
-            _uiState.update { it.copy(isExporting = true, statusMessage = "正在导出 ${format.name}") }
+            _uiState.update {
+                it.copy(
+                    isExporting = true,
+                    statusMessage = "正在导出 ${format.name}",
+                    exportFeedback = ExportFeedback("正在导出 ${format.name}…", ExportFeedbackTone.WORKING),
+                )
+            }
             val result = runCatching {
                 withContext(Dispatchers.IO) {
-                    resolver.openOutputStream(uri, "wt")?.use { output ->
-                        exportService.export(exportDocument, format, output)
-                    } ?: error("系统没有返回可写入的位置")
+                    automaticOutputStore.export(
+                        treeUri = Uri.parse(outputDirectory),
+                        sourceDisplayName = task.sourceDisplayName,
+                        document = exportDocument,
+                        format = format,
+                        conflictPolicy = settingsSnapshot.outputConflictPolicy,
+                    )
                 }
             }
             _uiState.update {
+                val message = result.fold(
+                    onSuccess = { "${format.name} 已保存到默认输出目录" },
+                    onFailure = ::exportFailureMessage,
+                )
                 it.copy(
                     isExporting = false,
-                    statusMessage = if (result.isSuccess) {
-                        "${format.name} 已导出到所选位置"
-                    } else {
-                        "导出失败，请换一个可写入的位置后重试"
-                    },
+                    statusMessage = message,
+                    exportFeedback = ExportFeedback(
+                        message = message,
+                        tone = if (result.isSuccess) ExportFeedbackTone.SUCCESS else ExportFeedbackTone.ERROR,
+                    ),
                 )
             }
         }
     }
 
+    fun setLastExportFormat(format: TranscriptExportFormat) {
+        viewModelScope.launch {
+            container.settings.setLastExportFormat(format)
+        }
+    }
+
+    private fun exportFailureMessage(error: Throwable): String = when (error) {
+        is SecurityException -> "默认输出目录的写入授权已失效，请在设置中重新选择该目录"
+        is java.io.FileNotFoundException -> "默认输出目录暂时不可用，请确认存储设备已连接后重试"
+        is java.io.IOException -> error.message ?: "默认输出目录无法写入，请重试"
+        else -> "导出未完成，请重试；若仍失败请在设置中重新选择默认目录"
+    }
+
     fun updateTranscriptDraft(value: String) {
         if (_uiState.value.openedResultTaskId == null) return
         _uiState.update { it.copy(transcriptText = value) }
-    }
-
-    fun suggestedFileName(format: TranscriptExportFormat): String {
-        val baseName = latestDocument?.title?.ifBlank { null }
-            ?: _uiState.value.selectedSourceName
-                ?.substringBeforeLast('.')
-                ?.ifBlank { null }
-            ?: "南枫转写结果"
-        val extension = when (format) {
-            TranscriptExportFormat.TXT -> "txt"
-            TranscriptExportFormat.MARKDOWN -> "md"
-            TranscriptExportFormat.SRT -> "srt"
-            TranscriptExportFormat.DOCX -> "docx"
-        }
-        return "$baseName.$extension"
     }
 
     fun setLanguageCode(value: String?) {
@@ -905,7 +1004,12 @@ class TranscriptionViewModel(application: Application) : AndroidViewModel(applic
         viewModelScope.launch {
             runCatching { container.settings.savePostProcessApiKey(value) }
                 .onSuccess {
-                    _uiState.update { it.copy(statusMessage = "API Key 已由 Android Keystore 加密保存") }
+                    _uiState.update {
+                        it.copy(
+                            statusMessage = "千问 API Key 已由 Android Keystore 加密保存",
+                            revealedPostProcessApiKey = null,
+                        )
+                    }
                 }
                 .onFailure { error ->
                     _uiState.update { it.copy(statusMessage = error.message ?: "无法保存 API Key") }
@@ -916,7 +1020,19 @@ class TranscriptionViewModel(application: Application) : AndroidViewModel(applic
     fun clearPostProcessApiKey() {
         viewModelScope.launch {
             container.settings.clearPostProcessApiKey()
-            _uiState.update { it.copy(statusMessage = "已删除本机 API Key，并关闭翻译润色") }
+            _uiState.update {
+                it.copy(
+                    statusMessage = "已删除本机千问 API Key",
+                    revealedPostProcessApiKey = null,
+                )
+            }
+        }
+    }
+
+    fun revealPostProcessApiKey() {
+        viewModelScope.launch {
+            val apiKey = withContext(Dispatchers.IO) { container.settings.readPostProcessApiKey() }
+            _uiState.update { it.copy(revealedPostProcessApiKey = apiKey) }
         }
     }
 
@@ -926,6 +1042,23 @@ class TranscriptionViewModel(application: Application) : AndroidViewModel(applic
     }
 
     private suspend fun refreshModelState(model: CatalogModel = selectedModel) {
+        if (!model.requiresLocalCache) {
+            if (model.manifest.modelId != selectedModel.manifest.modelId) return
+            readyModelPath = null
+            _uiState.update {
+                it.copy(
+                    modelDisplayName = model.displayName,
+                    modelRequiresLocalCache = false,
+                    modelExpectedBytes = 0L,
+                    modelCacheBytes = 0L,
+                    stage = WorkflowStage.IDLE,
+                    modelState = ModelInstallState.READY,
+                    modelProgress = null,
+                    statusMessage = "Qwen3-ASR API 将直接发送所选音频片段；需先配置千问 API Key",
+                )
+            }
+            return
+        }
         val inspection = withContext(Dispatchers.IO) {
             container.modelStore.inspect(model.manifest)
         }
@@ -937,6 +1070,7 @@ class TranscriptionViewModel(application: Application) : AndroidViewModel(applic
         _uiState.update {
             it.copy(
                 modelDisplayName = model.displayName,
+                modelRequiresLocalCache = true,
                 modelExpectedBytes = model.manifest.expectedBytes,
                 modelCacheBytes = cacheBytes,
                 stage = WorkflowStage.IDLE,
@@ -1119,11 +1253,15 @@ class TranscriptionViewModel(application: Application) : AndroidViewModel(applic
             taskStateOrNull(it) == TranscriptionTaskState.COMPLETED && it.outputUri != null
         }
         val completedIds = completed.mapTo(mutableSetOf(), TranscriptionTaskEntity::id)
+        val invalidIds = withContext(Dispatchers.IO) {
+            completed.filterNot(::isStoredResultReadable).mapTo(mutableSetOf(), TranscriptionTaskEntity::id)
+        }
+        val readable = completed.filterNot { it.id in invalidIds }
         val existing = _uiState.value.historyPreviews.filterKeys { it in completedIds }
-        val missing = completed.filterNot { existing.containsKey(it.id) }
+        val missing = readable.filterNot { existing.containsKey(it.id) }
         if (missing.isEmpty()) {
-            if (existing.size != _uiState.value.historyPreviews.size) {
-                _uiState.update { it.copy(historyPreviews = existing) }
+            if (existing.size != _uiState.value.historyPreviews.size || invalidIds != _uiState.value.invalidHistoryTaskIds) {
+                _uiState.update { it.copy(historyPreviews = existing, invalidHistoryTaskIds = invalidIds) }
             }
             return
         }
@@ -1133,8 +1271,13 @@ class TranscriptionViewModel(application: Application) : AndroidViewModel(applic
                     .getOrDefault("结果文件暂时无法读取")
             }
         }
-        _uiState.update { it.copy(historyPreviews = existing + loaded) }
+        _uiState.update { it.copy(historyPreviews = existing + loaded, invalidHistoryTaskIds = invalidIds) }
     }
+
+    private fun isStoredResultReadable(task: TranscriptionTaskEntity): Boolean = runCatching {
+        val outputUri = requireNotNull(task.outputUri)
+        Files.isRegularFile(Paths.get(URI(outputUri)))
+    }.getOrDefault(false)
 
     private fun loadStoredTranscript(task: TranscriptionTaskEntity): StoredTranscript {
         val outputUri = task.outputUri ?: error("任务没有结果位置")
@@ -1347,6 +1490,7 @@ private fun List<PendingSource>.totalBytes(): Long? =
 data class TranscriptionUiState(
     val nativeStatus: String,
     val modelDisplayName: String,
+    val modelRequiresLocalCache: Boolean = true,
     val modelExpectedBytes: Long,
     val modelCacheBytes: Long = 0L,
     val modelState: ModelInstallState = ModelInstallState.NOT_INSTALLED,
@@ -1364,11 +1508,14 @@ data class TranscriptionUiState(
     val progress: Float? = null,
     val transcriptText: String? = null,
     val historyPreviews: Map<String, String> = emptyMap(),
+    val invalidHistoryTaskIds: Set<String> = emptySet(),
     val openedResultTaskId: String? = null,
     val detectedLanguage: String? = null,
     val performanceSummary: String? = null,
     val statusMessage: String = "正在检查模型缓存",
+    val revealedPostProcessApiKey: String? = null,
     val isExporting: Boolean = false,
+    val exportFeedback: ExportFeedback? = null,
     val activeTaskId: String? = null,
 ) {
     val isBusy: Boolean
@@ -1387,6 +1534,17 @@ data class TranscriptionUiState(
         get() = selectedSourceName != null &&
             !isBusy &&
             !isExporting
+}
+
+data class ExportFeedback(
+    val message: String,
+    val tone: ExportFeedbackTone,
+)
+
+enum class ExportFeedbackTone {
+    WORKING,
+    SUCCESS,
+    ERROR,
 }
 
 enum class WorkflowStage {
