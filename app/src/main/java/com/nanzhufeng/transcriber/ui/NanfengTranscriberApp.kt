@@ -36,8 +36,8 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
@@ -49,9 +49,9 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
-import com.nanzhufeng.transcriber.domain.export.TranscriptExportFormat
 import com.nanzhufeng.transcriber.SharedInputRequest
 import com.nanzhufeng.transcriber.ui.screens.HistoryScreen
+import com.nanzhufeng.transcriber.ui.screens.HistoryMediaReviewPane
 import com.nanzhufeng.transcriber.ui.screens.HomeScreen
 import com.nanzhufeng.transcriber.ui.screens.SettingsScreen
 
@@ -64,8 +64,13 @@ fun NanfengTranscriberApp(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val tasks by viewModel.tasks.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
+    val invocationRecords by viewModel.asrInvocationRecords.collectAsStateWithLifecycle()
     var destination by rememberSaveable { mutableStateOf(WorkbenchDestination.HOME) }
-    var pendingExport by rememberSaveable { mutableStateOf(TranscriptExportFormat.TXT) }
+    // Root-owned, saveable session follows the downloader's history player contract.  A fold or
+    // external-display configuration change may recreate HistoryScreen, but not the session.
+    var activeVideoTaskId by rememberSaveable { mutableStateOf<String?>(null) }
+    var activeVideoPositionMillis by rememberSaveable { mutableStateOf(0L) }
+    var activeVideoPlayWhenReady by rememberSaveable { mutableStateOf(true) }
     val context = LocalView.current.context
 
     val sourcePicker = rememberLauncherForActivityResult(
@@ -77,9 +82,6 @@ fun NanfengTranscriberApp(
     val outputFolderPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocumentTree(),
     ) { uri -> uri?.let(viewModel::setDefaultOutputDirectory) }
-    val exportPicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("*/*"),
-    ) { uri -> uri?.let { viewModel.exportResult(it, pendingExport) } }
     val modelImportPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
     ) { uri -> uri?.let(viewModel::importSelectedModel) }
@@ -158,16 +160,23 @@ fun NanfengTranscriberApp(
 
                 WorkbenchDestination.HISTORY -> HistoryScreen(
                     state = state,
+                    lastExportFormat = settings.lastExportFormat,
                     tasks = tasks,
                     expanded = expanded,
                     onOpenResult = viewModel::openTaskResult,
                     onCopyResult = viewModel::copyTaskResult,
                     onCopyTranscriptDraft = viewModel::copyTranscriptDraft,
                     onDeleteTask = viewModel::deleteTask,
+                    onDeleteTasks = viewModel::deleteHistoryTasks,
+                    onCleanInvalidHistory = viewModel::cleanInvalidHistory,
                     onTranscriptDraftChanged = viewModel::updateTranscriptDraft,
-                    onExport = { format ->
-                        pendingExport = format
-                        exportPicker.launch(viewModel.suggestedFileName(format))
+                    onExport = viewModel::exportResultToDefaultDirectory,
+                    onExportFormatChanged = viewModel::setLastExportFormat,
+                    onOpenMediaReview = { taskId ->
+                        viewModel.openTaskResult(taskId)
+                        activeVideoTaskId = taskId
+                        activeVideoPositionMillis = 0L
+                        activeVideoPlayWhenReady = true
                     },
                 )
 
@@ -183,15 +192,35 @@ fun NanfengTranscriberApp(
                     onModelChanged = viewModel::setModelId,
                     onLanguageChanged = viewModel::setLanguageCode,
                     onThreadCountChanged = viewModel::setThreadCount,
-                    onKeepScreenOnChanged = viewModel::setKeepScreenOn,
                     onChooseOutputDirectory = { outputFolderPicker.launch(null) },
                     onClearOutputDirectory = viewModel::clearDefaultOutputDirectory,
                     onConflictPolicyChanged = viewModel::setOutputConflictPolicy,
-                    onPostProcessEnabledChanged = viewModel::setPostProcessEnabled,
-                    onSavePostProcessConnection = viewModel::savePostProcessConnection,
                     onSavePostProcessApiKey = viewModel::savePostProcessApiKey,
-                    onClearPostProcessApiKey = viewModel::clearPostProcessApiKey,
+                    onRevealPostProcessApiKey = viewModel::revealPostProcessApiKey,
                     onSkinChanged = viewModel::setSkinId,
+                    invocationRecords = invocationRecords,
+                )
+            }
+        }
+        activeVideoTaskId?.let { taskId ->
+            tasks.firstOrNull { it.id == taskId }?.let { task ->
+                HistoryMediaReviewPane(
+                    task = task,
+                    state = state,
+                    lastExportFormat = settings.lastExportFormat,
+                    initialVideoPositionMillis = activeVideoPositionMillis,
+                    initialVideoPlayWhenReady = activeVideoPlayWhenReady,
+                    onVideoPlaybackSnapshot = { positionMillis, playWhenReady ->
+                        if (activeVideoTaskId == task.id) {
+                            activeVideoPositionMillis = positionMillis
+                            activeVideoPlayWhenReady = playWhenReady
+                        }
+                    },
+                    onDismiss = { activeVideoTaskId = null },
+                    onCopy = viewModel::copyTranscriptDraft,
+                    onTranscriptDraftChanged = viewModel::updateTranscriptDraft,
+                    onExport = viewModel::exportResultToDefaultDirectory,
+                    onExportFormatChanged = viewModel::setLastExportFormat,
                 )
             }
         }

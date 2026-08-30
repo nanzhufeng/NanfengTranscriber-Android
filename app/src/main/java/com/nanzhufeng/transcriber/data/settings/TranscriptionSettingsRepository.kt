@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import java.io.IOException
 import com.nanzhufeng.transcriber.data.task.OutputConflictPolicy
+import com.nanzhufeng.transcriber.domain.export.TranscriptExportFormat
 
 private val Context.transcriptionSettingsStore by preferencesDataStore(
     name = "transcription-settings",
@@ -38,6 +39,9 @@ class TranscriptionSettingsRepository(
                 outputConflictPolicy = values[OUTPUT_CONFLICT_POLICY]
                     ?.let { runCatching { OutputConflictPolicy.valueOf(it) }.getOrNull() }
                     ?: OutputConflictPolicy.RENAME,
+                lastExportFormat = values[LAST_EXPORT_FORMAT]
+                    ?.let { runCatching { TranscriptExportFormat.valueOf(it) }.getOrNull() }
+                    ?: TranscriptExportFormat.TXT,
                 postProcessEnabled = values[POST_PROCESS_ENABLED] ?: false,
                 postProcessBaseUrl = values[POST_PROCESS_BASE_URL] ?: DEFAULT_POST_PROCESS_BASE_URL,
                 postProcessModel = values[POST_PROCESS_MODEL] ?: DEFAULT_POST_PROCESS_MODEL,
@@ -90,6 +94,12 @@ class TranscriptionSettingsRepository(
         }
     }
 
+    suspend fun setLastExportFormat(value: TranscriptExportFormat) {
+        context.transcriptionSettingsStore.edit { preferences ->
+            preferences[LAST_EXPORT_FORMAT] = value.name
+        }
+    }
+
     suspend fun setPostProcessEnabled(value: Boolean) {
         require(!value || apiCredentials.hasApiKey()) { "请先保存翻译润色 API Key" }
         context.transcriptionSettingsStore.edit { preferences ->
@@ -114,6 +124,9 @@ class TranscriptionSettingsRepository(
         }
     }
 
+    /** 仅供用户在设置页明确点按“显示 API Key”后读取，不进入 DataStore 设置状态。 */
+    fun readPostProcessApiKey(): String? = apiCredentials.readApiKey()
+
     suspend fun clearPostProcessApiKey() {
         apiCredentials.clearApiKey()
         context.transcriptionSettingsStore.edit { preferences ->
@@ -125,7 +138,7 @@ class TranscriptionSettingsRepository(
     private companion object {
         const val DEFAULT_SKIN = "forest_maple"
         const val LEGACY_SKIN = "workbench-sage"
-        const val DEFAULT_MODEL = "small-q5_1"
+        const val DEFAULT_MODEL = "sensevoice-small-int8"
         const val DEFAULT_POST_PROCESS_BASE_URL = "https://api.openai.com/v1"
         const val DEFAULT_POST_PROCESS_MODEL = "gpt-4o-mini"
         val MODEL_ID = stringPreferencesKey("model_id")
@@ -135,6 +148,7 @@ class TranscriptionSettingsRepository(
         val SKIN_ID = stringPreferencesKey("skin_id")
         val OUTPUT_DIRECTORY_URI = stringPreferencesKey("output_directory_uri")
         val OUTPUT_CONFLICT_POLICY = stringPreferencesKey("output_conflict_policy")
+        val LAST_EXPORT_FORMAT = stringPreferencesKey("last_export_format")
         val POST_PROCESS_ENABLED = booleanPreferencesKey("post_process_enabled")
         val POST_PROCESS_BASE_URL = stringPreferencesKey("post_process_base_url")
         val POST_PROCESS_MODEL = stringPreferencesKey("post_process_model")
@@ -143,13 +157,14 @@ class TranscriptionSettingsRepository(
 }
 
 data class TranscriptionSettings(
-    val modelId: String = "small-q5_1",
+    val modelId: String = "sensevoice-small-int8",
     val languageCode: String? = null,
     val threadCount: Int = 0,
     val keepScreenOn: Boolean = true,
     val skinId: String = "forest_maple",
     val defaultOutputDirectoryUri: String? = null,
     val outputConflictPolicy: OutputConflictPolicy = OutputConflictPolicy.RENAME,
+    val lastExportFormat: TranscriptExportFormat = TranscriptExportFormat.TXT,
     val postProcessEnabled: Boolean = false,
     val postProcessBaseUrl: String = "https://api.openai.com/v1",
     val postProcessModel: String = "gpt-4o-mini",

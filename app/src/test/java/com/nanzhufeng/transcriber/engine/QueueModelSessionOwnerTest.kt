@@ -1,5 +1,6 @@
 package com.nanzhufeng.transcriber.engine
 
+import com.nanzhufeng.transcriber.data.modelstore.AsrProviderId
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -16,11 +17,11 @@ class QueueModelSessionOwnerTest {
     @Test
     fun sameModelAndThreadCountReuseOneWarmSession() = runBlocking {
         val engines = mutableListOf<RecordingSpeechEngine>()
-        val owner = QueueModelSessionOwner { RecordingSpeechEngine().also(engines::add) }
+        val owner = QueueModelSessionOwner { _, _ -> RecordingSpeechEngine().also(engines::add) }
         val model = modelFile("base.bin")
 
-        val first = owner.acquire(model, threadCount = 4)
-        val second = owner.acquire(model, threadCount = 4)
+        val first = owner.acquire(AsrProviderId.SENSEVOICE, model, threadCount = 4)
+        val second = owner.acquire(AsrProviderId.SENSEVOICE, model, threadCount = 4)
 
         assertFalse(first.reused)
         assertTrue(second.reused)
@@ -34,10 +35,14 @@ class QueueModelSessionOwnerTest {
     @Test
     fun changingModelReleasesOldModelWithoutRecreatingEngine() = runBlocking {
         val engines = mutableListOf<RecordingSpeechEngine>()
-        val owner = QueueModelSessionOwner { RecordingSpeechEngine().also(engines::add) }
+        val owner = QueueModelSessionOwner { _, _ -> RecordingSpeechEngine().also(engines::add) }
 
-        owner.acquire(modelFile("base.bin"), threadCount = 4)
-        val acquisition = owner.acquire(modelFile("small.bin"), threadCount = 4)
+        owner.acquire(AsrProviderId.SENSEVOICE, modelFile("base.bin"), threadCount = 4)
+        val acquisition = owner.acquire(
+            AsrProviderId.SENSEVOICE,
+            modelFile("small.bin"),
+            threadCount = 4,
+        )
 
         assertFalse(acquisition.reused)
         assertEquals(1, engines.size)
@@ -49,16 +54,31 @@ class QueueModelSessionOwnerTest {
     @Test
     fun changingThreadCountRecreatesEngineAndSession() = runBlocking {
         val engines = mutableListOf<RecordingSpeechEngine>()
-        val owner = QueueModelSessionOwner { RecordingSpeechEngine().also(engines::add) }
+        val owner = QueueModelSessionOwner { _, _ -> RecordingSpeechEngine().also(engines::add) }
         val model = modelFile("base.bin")
 
-        owner.acquire(model, threadCount = 4)
-        val acquisition = owner.acquire(model, threadCount = 6)
+        owner.acquire(AsrProviderId.SENSEVOICE, model, threadCount = 4)
+        val acquisition = owner.acquire(AsrProviderId.SENSEVOICE, model, threadCount = 6)
 
         assertFalse(acquisition.reused)
         assertEquals(2, engines.size)
         assertTrue(engines.first().closed)
         assertEquals(1, engines.first().releasedCount)
+        owner.close()
+    }
+
+    @Test
+    fun changingProviderRecreatesEngineEvenWhenPathAndThreadsMatch() = runBlocking {
+        val engines = mutableListOf<RecordingSpeechEngine>()
+        val owner = QueueModelSessionOwner { _, _ -> RecordingSpeechEngine().also(engines::add) }
+        val model = modelFile("shared-entry.bin")
+
+        owner.acquire(AsrProviderId.SENSEVOICE, model, threadCount = 4)
+        val acquisition = owner.acquire(AsrProviderId.QWEN3_ASR_API, model, threadCount = 4)
+
+        assertFalse(acquisition.reused)
+        assertEquals(2, engines.size)
+        assertTrue(engines.first().closed)
         owner.close()
     }
 

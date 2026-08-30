@@ -2,13 +2,14 @@ package com.nanzhufeng.transcriber.ui.screens
 
 import android.net.Uri
 import android.media.MediaPlayer
-import android.widget.MediaController
 import android.widget.VideoView
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -21,12 +22,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.PauseCircle
@@ -36,6 +40,7 @@ import androidx.compose.material.icons.outlined.Movie
 import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.OpenInFull
+import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -51,6 +56,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -62,6 +68,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -71,6 +78,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -82,6 +90,7 @@ import com.nanzhufeng.transcriber.data.task.TranscriptionTaskEntity
 import com.nanzhufeng.transcriber.domain.export.TranscriptExportFormat
 import com.nanzhufeng.transcriber.domain.task.TranscriptionTaskState
 import com.nanzhufeng.transcriber.ui.TranscriptionUiState
+import com.nanzhufeng.transcriber.ui.ExportFeedbackTone
 import com.nanzhufeng.transcriber.ui.theme.TranscriptPreviewOrange
 import com.nanzhufeng.transcriber.ui.components.TaskMediaPreview
 import com.nanzhufeng.transcriber.ui.components.WorkbenchCard
@@ -101,20 +110,28 @@ import kotlinx.coroutines.withContext
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 fun HistoryScreen(
     state: TranscriptionUiState,
+    lastExportFormat: TranscriptExportFormat,
     tasks: List<TranscriptionTaskEntity>,
     expanded: Boolean,
     onOpenResult: (String) -> Unit,
     onCopyResult: (String) -> Unit,
     onCopyTranscriptDraft: () -> Unit,
     onDeleteTask: (String) -> Unit,
+    onDeleteTasks: (Set<String>) -> Unit,
+    onCleanInvalidHistory: () -> Unit,
     onTranscriptDraftChanged: (String) -> Unit,
     onExport: (TranscriptExportFormat) -> Unit,
+    onExportFormatChanged: (TranscriptExportFormat) -> Unit,
+    onOpenMediaReview: (String) -> Unit,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     var period by rememberSaveable { mutableStateOf(HistoryPeriod.ALL) }
     var openedTaskId by rememberSaveable { mutableStateOf<String?>(null) }
-    var openedMediaTaskId by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectionMode by rememberSaveable { mutableStateOf(false) }
+    var selectedHistoryIds by rememberSaveable { mutableStateOf<Set<String>>(emptySet()) }
+    var pendingBulkDeleteIds by rememberSaveable { mutableStateOf<Set<String>>(emptySet()) }
+    var confirmCleanInvalid by rememberSaveable { mutableStateOf(false) }
     val completed = remember(tasks, query, period, state.historyPreviews) {
         val keyword = query.trim()
         tasks.asSequence()
@@ -129,6 +146,8 @@ fun HistoryScreen(
             .toList()
     }
     val grouped = remember(completed) { completed.groupBy { formatHistoryDay(it.updatedAtMillis) } }
+    val completedIds = remember(completed) { completed.mapTo(mutableSetOf(), TranscriptionTaskEntity::id) }
+    val missingResultCount = completed.count { it.id in state.invalidHistoryTaskIds }
 
     Box(modifier = Modifier.fillMaxSize()) {
         LazyVerticalGrid(
@@ -153,25 +172,34 @@ fun HistoryScreen(
                     singleLine = true,
                     leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
                     label = { Text("搜索文件名或转写文字") },
+                    shape = RoundedCornerShape(percent = 50),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color.White,
+                        disabledContainerColor = Color.White,
+                    ),
                 )
             }
             item(span = { GridItemSpan(maxLineSpan) }) {
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    HistoryPeriod.entries.forEach { option ->
-                        FilterChip(
-                            selected = period == option,
-                            onClick = { period = option },
-                            label = { Text(option.label) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                selectedLabelColor = MaterialTheme.colorScheme.primary,
-                            ),
-                        )
-                    }
-                }
+                HistoryActionBar(
+                    period = period,
+                    selectionMode = selectionMode,
+                    selectedCount = selectedHistoryIds.size,
+                    availableIds = completedIds,
+                    missingResultCount = missingResultCount,
+                    onPeriodChange = {
+                        period = it
+                        selectedHistoryIds = emptySet()
+                    },
+                    onStartSelection = { selectionMode = true },
+                    onSelectAll = { selectedHistoryIds = completedIds },
+                    onCancelSelection = {
+                        selectionMode = false
+                        selectedHistoryIds = emptySet()
+                    },
+                    onDeleteSelected = { pendingBulkDeleteIds = selectedHistoryIds },
+                    onCleanInvalidHistory = { confirmCleanInvalid = true },
+                )
             }
 
             if (grouped.isEmpty()) {
@@ -190,44 +218,41 @@ fun HistoryScreen(
                             task = task,
                             preview = state.historyPreviews[task.id],
                             expanded = expanded,
+                            selectionMode = selectionMode,
+                            selected = task.id in selectedHistoryIds,
+                            isResultInvalid = task.id in state.invalidHistoryTaskIds,
+                            onSelectionChange = {
+                                selectedHistoryIds = if (task.id in selectedHistoryIds) {
+                                    selectedHistoryIds - task.id
+                                } else {
+                                    selectedHistoryIds + task.id
+                                }
+                            },
                             onOpen = {
                                 openedTaskId = task.id
                                 onOpenResult(task.id)
                             },
                             onCopy = { onCopyResult(task.id) },
-                            onOpenMedia = {
-                                onOpenResult(task.id)
-                                openedMediaTaskId = task.id
-                            },
+                            onOpenMedia = { onOpenMediaReview(task.id) },
                             onDelete = { pendingDeleteId = task.id },
                         )
                     }
                 }
             }
         }
-        openedMediaTaskId?.let { taskId ->
-            tasks.firstOrNull { it.id == taskId }?.let { task ->
-                HistoryMediaReviewPane(
-                    task = task,
-                    state = state,
-                    onDismiss = { openedMediaTaskId = null },
-                    onCopy = onCopyTranscriptDraft,
-                    onTranscriptDraftChanged = onTranscriptDraftChanged,
-                    onExport = onExport,
-                )
-            }
-        }
     }
 
     openedTaskId?.let { taskId ->
         val task = tasks.firstOrNull { it.id == taskId }
-        HistoryResultDialog(
+        HistoryResultPane(
             task = task,
             state = state,
             onDismiss = { openedTaskId = null },
             onCopy = onCopyTranscriptDraft,
             onTranscriptDraftChanged = onTranscriptDraftChanged,
             onExport = onExport,
+            lastExportFormat = lastExportFormat,
+            onExportFormatChanged = onExportFormatChanged,
         )
     }
 
@@ -248,6 +273,97 @@ fun HistoryScreen(
             dismissButton = { TextButton(onClick = { pendingDeleteId = null }) { Text("取消") } },
         )
     }
+
+    if (pendingBulkDeleteIds.isNotEmpty()) {
+        AlertDialog(
+            onDismissRequest = { pendingBulkDeleteIds = emptySet() },
+            title = { Text("删除 ${pendingBulkDeleteIds.size} 条历史记录？") },
+            text = { Text("只删除 App 内的转写结果和历史记录；原音视频、模型缓存及已导出文件不受影响。") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onDeleteTasks(pendingBulkDeleteIds)
+                        pendingBulkDeleteIds = emptySet()
+                        selectedHistoryIds = emptySet()
+                        selectionMode = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                ) { Text("删除记录") }
+            },
+            dismissButton = { TextButton(onClick = { pendingBulkDeleteIds = emptySet() }) { Text("取消") } },
+        )
+    }
+
+    if (confirmCleanInvalid) {
+        AlertDialog(
+            onDismissRequest = { confirmCleanInvalid = false },
+            title = { Text("清理失效历史？") },
+            text = { Text("仅删除转写结果文件已不存在的历史记录；原音视频、模型缓存和导出文件均不会受到影响。") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        confirmCleanInvalid = false
+                        onCleanInvalidHistory()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                ) { Text("清理记录") }
+            },
+            dismissButton = { TextButton(onClick = { confirmCleanInvalid = false }) { Text("取消") } },
+        )
+    }
+}
+
+@Composable
+private fun HistoryActionBar(
+    period: HistoryPeriod,
+    selectionMode: Boolean,
+    selectedCount: Int,
+    availableIds: Set<String>,
+    missingResultCount: Int,
+    onPeriodChange: (HistoryPeriod) -> Unit,
+    onStartSelection: () -> Unit,
+    onSelectAll: () -> Unit,
+    onCancelSelection: () -> Unit,
+    onDeleteSelected: () -> Unit,
+    onCleanInvalidHistory: () -> Unit,
+) {
+    var periodMenuExpanded by rememberSaveable { mutableStateOf(false) }
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Box {
+            FilterChip(
+                selected = true,
+                onClick = { periodMenuExpanded = true },
+                label = { Text(period.label) },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                ),
+            )
+            DropdownMenu(expanded = periodMenuExpanded, onDismissRequest = { periodMenuExpanded = false }) {
+                HistoryPeriod.entries.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(option.label) },
+                        onClick = {
+                            periodMenuExpanded = false
+                            onPeriodChange(option)
+                        },
+                    )
+                }
+            }
+        }
+        Spacer(Modifier.weight(1f))
+        if (selectionMode) {
+            Text("已选 $selectedCount 项", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+            TextButton(onClick = onSelectAll, enabled = availableIds.isNotEmpty()) { Text("全选") }
+            TextButton(onClick = onCancelSelection) { Text("取消") }
+            TextButton(onClick = onDeleteSelected, enabled = selectedCount > 0) { Text("删除") }
+        } else {
+            TextButton(onClick = onStartSelection) { Text("批量删除") }
+            if (missingResultCount > 0) {
+                TextButton(onClick = onCleanInvalidHistory) { Text("清理失效（$missingResultCount）") }
+            }
+        }
+    }
 }
 
 @Composable
@@ -255,26 +371,34 @@ private fun CompletedTimelineItem(
     task: TranscriptionTaskEntity,
     preview: String?,
     expanded: Boolean,
+    selectionMode: Boolean,
+    selected: Boolean,
+    isResultInvalid: Boolean,
+    onSelectionChange: () -> Unit,
     onOpen: () -> Unit,
     onCopy: () -> Unit,
     onOpenMedia: () -> Unit,
     onDelete: () -> Unit,
 ) {
     var menuExpanded by rememberSaveable(task.id) { mutableStateOf(false) }
+    var showTranscriptionInfo by rememberSaveable(task.id) { mutableStateOf(false) }
     val previewText = formatTranscriptPreview(preview, if (expanded) 120 else 80)
     val modelName = if (task.userMessage?.startsWith("已直接提取内嵌字幕") == true) {
         "内嵌字幕"
     } else {
         OfficialModelCatalog.find(task.modelId)?.displayName ?: task.modelId
     }
-    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+    val primaryAction = if (selectionMode) onSelectionChange else onOpen
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Column(modifier = Modifier.width(48.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(
-                Icons.Filled.CheckCircle,
-                contentDescription = "已完成",
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(if (expanded) 24.dp else 22.dp),
-            )
+            IconButton(onClick = if (selectionMode) onSelectionChange else ({}), modifier = Modifier.size(if (expanded) 30.dp else 28.dp)) {
+                Icon(
+                    if (selectionMode && !selected) Icons.Outlined.RadioButtonUnchecked else Icons.Filled.CheckCircle,
+                    contentDescription = if (selectionMode) "选择 ${task.sourceDisplayName}" else "已完成",
+                    tint = if (selected || !selectionMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(if (expanded) 24.dp else 22.dp),
+                )
+            }
             Text(
                 formatHistoryClock(task.updatedAtMillis),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -286,7 +410,7 @@ private fun CompletedTimelineItem(
             )
         }
         WorkbenchCard(
-            modifier = Modifier.weight(1f).clickable(onClick = onOpen),
+            modifier = Modifier.weight(1f).clickable(onClick = primaryAction),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 TaskMediaPreview(
@@ -298,7 +422,7 @@ private fun CompletedTimelineItem(
                         width = if (expanded) 104.dp else 76.dp,
                         height = if (expanded) 78.dp else 64.dp,
                     ),
-                    onClick = onOpenMedia,
+                    onClick = if (selectionMode) onSelectionChange else onOpenMedia,
                 )
                 Spacer(Modifier.width(if (expanded) 12.dp else 8.dp))
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -311,7 +435,7 @@ private fun CompletedTimelineItem(
                             style = if (expanded) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.SemiBold,
                         )
-                        Box {
+                        if (!selectionMode) Box {
                             IconButton(
                                 onClick = { menuExpanded = true },
                                 modifier = Modifier.size(30.dp),
@@ -319,6 +443,15 @@ private fun CompletedTimelineItem(
                                 Icon(Icons.Outlined.MoreVert, contentDescription = "更多操作", modifier = Modifier.size(19.dp))
                             }
                             DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                                task.technicalDetail?.takeIf(String::isNotBlank)?.let { detail ->
+                                    DropdownMenuItem(
+                                        text = { Text("转写信息") },
+                                        onClick = {
+                                            menuExpanded = false
+                                            showTranscriptionInfo = true
+                                        },
+                                    )
+                                }
                                 DropdownMenuItem(
                                     text = { Text("打开完整文字") },
                                     leadingIcon = { Icon(Icons.Outlined.OpenInFull, contentDescription = null) },
@@ -356,12 +489,19 @@ private fun CompletedTimelineItem(
                     }
                     Text(
                         previewText,
-                        maxLines = 2,
+                        maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         style = MaterialTheme.typography.bodySmall,
                         color = TranscriptPreviewOrange,
                         fontWeight = FontWeight.Medium,
                     )
+                    if (isResultInvalid) {
+                        Text(
+                            "结果文件已失效，可用“清理失效”删除记录",
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.labelSmall,
+                        )
+                    }
                     Text(
                         buildString {
                             task.totalDurationMillis?.let { append("${formatDuration(it)} · ") }
@@ -384,16 +524,34 @@ private fun CompletedTimelineItem(
             }
         }
     }
+    if (showTranscriptionInfo) {
+        AlertDialog(
+            onDismissRequest = { showTranscriptionInfo = false },
+            title = { Text("转写信息") },
+            text = {
+                Text(
+                    formatPerformanceSeconds(task.technicalDetail.orEmpty()),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            },
+            confirmButton = { TextButton(onClick = { showTranscriptionInfo = false }) { Text("关闭") } },
+        )
+    }
 }
 
 @Composable
-private fun HistoryMediaReviewPane(
+fun HistoryMediaReviewPane(
     task: TranscriptionTaskEntity,
     state: TranscriptionUiState,
+    lastExportFormat: TranscriptExportFormat,
+    initialVideoPositionMillis: Long,
+    initialVideoPlayWhenReady: Boolean,
+    onVideoPlaybackSnapshot: (positionMillis: Long, playWhenReady: Boolean) -> Unit,
     onDismiss: () -> Unit,
     onCopy: () -> Unit,
     onTranscriptDraftChanged: (String) -> Unit,
     onExport: (TranscriptExportFormat) -> Unit,
+    onExportFormatChanged: (TranscriptExportFormat) -> Unit,
 ) {
     val context = LocalContext.current
     val store = remember(context.applicationContext) { HistoryMediaPreviewStore(context.applicationContext) }
@@ -401,16 +559,23 @@ private fun HistoryMediaReviewPane(
     var sourceResolved by remember(task.id) { mutableStateOf(false) }
     var playableUri by remember(task.id) { mutableStateOf<Uri?>(null) }
     var playbackError by remember(task.id) { mutableStateOf<String?>(null) }
-    var videoView by remember(task.id) { mutableStateOf<VideoView?>(null) }
 
     LaunchedEffect(task.id) {
         playableUri = withContext(Dispatchers.IO) { store.playableUri(task) }
         sourceResolved = true
     }
-    DisposableEffect(task.id) {
-        onDispose { videoView?.stopPlayback() }
-    }
     BackHandler(onBack = onDismiss)
+
+    if (kind == HistoryMediaKind.IMAGE && sourceResolved && playableUri != null) {
+        HistoryImageReviewPane(
+            title = task.sourceDisplayName,
+            uri = requireNotNull(playableUri),
+            stagedInputPath = task.stagedInputPath,
+            store = store,
+            onDismiss = onDismiss,
+        )
+        return
+    }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -418,7 +583,7 @@ private fun HistoryMediaReviewPane(
         tonalElevation = 0.dp,
     ) {
         Column(
-            modifier = Modifier.fillMaxSize().padding(16.dp),
+            modifier = Modifier.fillMaxSize().statusBarsPadding().padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -469,32 +634,12 @@ private fun HistoryMediaReviewPane(
                                 onError = { playbackError = it },
                             )
                         } else {
-                            AndroidView(
-                                factory = { viewContext ->
-                                    VideoView(viewContext).also { view ->
-                                        videoView = view
-                                        val controller = MediaController(viewContext)
-                                        controller.setAnchorView(view)
-                                        view.setMediaController(controller)
-                                        view.setOnErrorListener { _, _, _ ->
-                                            playbackError = "原文件无法在 App 内播放，请确认文件没有损坏，并检查系统是否支持该视频编码。"
-                                            true
-                                        }
-                                    }
-                                },
-                                update = { view ->
-                                    val uri = requireNotNull(playableUri)
-                                    if (view.tag != uri.toString()) {
-                                        view.tag = uri.toString()
-                                        view.setVideoURI(uri)
-                                        view.setOnPreparedListener {
-                                            playbackError = null
-                                            view.start()
-                                            view.setOnPreparedListener(null)
-                                        }
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth().height(260.dp).background(Color.Black),
+                            HistoryVideoReview(
+                                uri = requireNotNull(playableUri),
+                                initialPositionMillis = initialVideoPositionMillis,
+                                initialPlayWhenReady = initialVideoPlayWhenReady,
+                                onPlaybackSnapshot = onVideoPlaybackSnapshot,
+                                onError = { playbackError = it },
                             )
                         }
                         playbackError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
@@ -503,14 +648,237 @@ private fun HistoryMediaReviewPane(
                         TranscriptEditorPanel(
                             task = task,
                             state = state,
+                            lastExportFormat = lastExportFormat,
                             onCopy = onCopy,
                             onTranscriptDraftChanged = onTranscriptDraftChanged,
                             onExport = onExport,
+                            onExportFormatChanged = onExportFormatChanged,
                             modifier = Modifier.fillMaxWidth().weight(1f),
                             fillAvailableHeight = true,
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+/**
+ * VideoView is deliberately kept as the decoder only.  The controls are Compose content inside
+ * this clipped 16:9 frame, so Android's MediaController cannot draw outside the source preview.
+ */
+@Composable
+private fun HistoryVideoReview(
+    uri: Uri,
+    initialPositionMillis: Long,
+    initialPlayWhenReady: Boolean,
+    onPlaybackSnapshot: (positionMillis: Long, playWhenReady: Boolean) -> Unit,
+    onError: (String) -> Unit,
+) {
+    val currentOnPlaybackSnapshot by rememberUpdatedState(onPlaybackSnapshot)
+    var videoView by remember(uri) { mutableStateOf<VideoView?>(null) }
+    var prepared by remember(uri) { mutableStateOf(false) }
+    var playing by remember(uri) { mutableStateOf(false) }
+    var durationMillis by remember(uri) { mutableStateOf(1) }
+    var positionMillis by remember(uri) { mutableStateOf(initialPositionMillis.coerceAtLeast(0L).toInt()) }
+    var seeking by remember(uri) { mutableStateOf(false) }
+    var pendingProgress by remember(uri) { mutableStateOf(0f) }
+    var controlsVisible by rememberSaveable(uri) { mutableStateOf(true) }
+
+    fun setPlayback(shouldPlay: Boolean) {
+        videoView?.let { view ->
+            if (shouldPlay) view.start() else view.pause()
+            playing = shouldPlay
+            currentOnPlaybackSnapshot(positionMillis.toLong(), playing)
+        }
+    }
+
+    DisposableEffect(uri) {
+        onDispose {
+            videoView?.let { view ->
+                currentOnPlaybackSnapshot(
+                    runCatching { view.currentPosition.toLong() }.getOrDefault(positionMillis.toLong()),
+                    playing,
+                )
+                view.stopPlayback()
+            }
+        }
+    }
+    LaunchedEffect(videoView, prepared, seeking) {
+        while (prepared) {
+            videoView?.let { view ->
+                if (!seeking) {
+                    positionMillis = runCatching { view.currentPosition }.getOrDefault(positionMillis)
+                        .coerceIn(0, durationMillis)
+                }
+                currentOnPlaybackSnapshot(positionMillis.toLong(), playing)
+            }
+            delay(300L)
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(16f / 9f)
+            .clip(MaterialTheme.shapes.large)
+            .background(Color.Black),
+    ) {
+        AndroidView(
+            factory = { viewContext ->
+                VideoView(viewContext).also { view ->
+                    videoView = view
+                    view.setOnErrorListener { _, _, _ ->
+                        playing = false
+                        onError("原文件无法在 App 内播放，请确认文件没有损坏，并检查系统是否支持该视频编码。")
+                        true
+                    }
+                    view.setOnPreparedListener { ready ->
+                        prepared = true
+                        durationMillis = ready.duration.coerceAtLeast(1)
+                        positionMillis = initialPositionMillis.coerceIn(0L, durationMillis.toLong()).toInt()
+                        ready.seekTo(positionMillis)
+                        if (initialPlayWhenReady) ready.start()
+                        playing = initialPlayWhenReady
+                        currentOnPlaybackSnapshot(positionMillis.toLong(), playing)
+                    }
+                    view.setOnCompletionListener {
+                        playing = false
+                        positionMillis = durationMillis
+                        currentOnPlaybackSnapshot(positionMillis.toLong(), false)
+                    }
+                }
+            },
+            update = { view ->
+                if (view.tag != uri.toString()) {
+                    view.tag = uri.toString()
+                    prepared = false
+                    playing = false
+                    positionMillis = initialPositionMillis.coerceAtLeast(0L).toInt()
+                    view.setVideoURI(uri)
+                }
+            },
+            modifier = Modifier.fillMaxSize(),
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(uri) {
+                    detectTapGestures(
+                        onTap = { controlsVisible = !controlsVisible },
+                        onDoubleTap = {
+                            controlsVisible = true
+                            setPlayback(!playing)
+                        },
+                    )
+                },
+        )
+        if (controlsVisible) {
+            IconButton(
+                onClick = { setPlayback(!playing) },
+                enabled = prepared,
+                modifier = Modifier.align(Alignment.Center).size(70.dp),
+            ) {
+                Icon(
+                    if (playing) Icons.Filled.PauseCircle else Icons.Filled.PlayCircle,
+                    contentDescription = if (playing) "暂停视频" else "播放视频",
+                    tint = Color.White,
+                    modifier = Modifier.size(62.dp),
+                )
+            }
+            Surface(
+                modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter),
+                color = Color.Black.copy(alpha = 0.62f),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                IconButton(
+                    onClick = { setPlayback(!playing) },
+                    enabled = prepared,
+                    modifier = Modifier.size(42.dp),
+                ) {
+                    Icon(
+                        if (playing) Icons.Filled.PauseCircle else Icons.Filled.PlayCircle,
+                        contentDescription = if (playing) "暂停" else "播放",
+                        tint = Color.White,
+                        modifier = Modifier.size(30.dp),
+                    )
+                }
+                Slider(
+                    value = if (seeking) pendingProgress else positionMillis.toFloat() / durationMillis,
+                    onValueChange = {
+                        seeking = true
+                        pendingProgress = it
+                    },
+                    onValueChangeFinished = {
+                        val position = (pendingProgress * durationMillis).toInt()
+                        videoView?.seekTo(position)
+                        positionMillis = position
+                        seeking = false
+                        currentOnPlaybackSnapshot(positionMillis.toLong(), playing)
+                    },
+                    enabled = prepared,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    "${formatPlaybackClock(positionMillis)} / ${formatPlaybackClock(durationMillis)}",
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 1,
+                    modifier = Modifier.padding(start = 6.dp),
+                )
+            }
+            }
+        }
+    }
+}
+
+/** The same local-only, full-screen image-review interaction used by 南枫下载 history. */
+@Composable
+private fun HistoryImageReviewPane(
+    title: String,
+    uri: Uri,
+    stagedInputPath: String?,
+    store: HistoryMediaPreviewStore,
+    onDismiss: () -> Unit,
+) {
+    val bitmap by produceState<android.graphics.Bitmap?>(initialValue = null, uri, stagedInputPath) {
+        value = withContext(Dispatchers.IO) {
+            store.loadSourceThumbnail(uri, stagedInputPath?.let(java.nio.file.Paths::get), title)
+        }
+    }
+    BackHandler(onBack = onDismiss)
+    Surface(modifier = Modifier.fillMaxSize(), color = Color.Black) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            bitmap?.let {
+                Image(
+                    bitmap = it.asImageBitmap(),
+                    contentDescription = "$title 图片原件",
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            } ?: CircularProgressIndicator(
+                modifier = Modifier.align(Alignment.Center),
+                color = Color.White,
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.TopCenter)
+                    .background(Color.Black.copy(alpha = 0.52f))
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    title,
+                    modifier = Modifier.weight(1f),
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                TextButton(onClick = onDismiss) { Text("关闭", color = Color.White) }
             }
         }
     }
@@ -623,50 +991,66 @@ private fun formatPlaybackClock(milliseconds: Int): String {
 }
 
 @Composable
-private fun HistoryResultDialog(
+private fun HistoryResultPane(
     task: TranscriptionTaskEntity?,
     state: TranscriptionUiState,
+    lastExportFormat: TranscriptExportFormat,
     onDismiss: () -> Unit,
     onCopy: () -> Unit,
     onTranscriptDraftChanged: (String) -> Unit,
     onExport: (TranscriptExportFormat) -> Unit,
+    onExportFormatChanged: (TranscriptExportFormat) -> Unit,
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Column {
-                Text("转写结果")
-                Text(
-                    task?.sourceDisplayName ?: "已完成任务",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
+    BackHandler(onBack = onDismiss)
+
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background,
+        tonalElevation = 0.dp,
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("转写结果", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        task?.sourceDisplayName ?: "已完成任务",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                TextButton(onClick = onDismiss) { Text("返回历史") }
             }
-        },
-        text = {
+            HorizontalDivider()
             TranscriptEditorPanel(
                 task = task,
                 state = state,
+                lastExportFormat = lastExportFormat,
                 onCopy = onCopy,
                 onTranscriptDraftChanged = onTranscriptDraftChanged,
                 onExport = onExport,
-                modifier = Modifier.fillMaxWidth(),
-                fillAvailableHeight = false,
+                onExportFormatChanged = onExportFormatChanged,
+                modifier = Modifier.fillMaxWidth().weight(1f),
+                fillAvailableHeight = true,
             )
-        },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("返回历史") } },
-    )
+        }
+    }
 }
 
 @Composable
 private fun TranscriptEditorPanel(
     task: TranscriptionTaskEntity?,
     state: TranscriptionUiState,
+    lastExportFormat: TranscriptExportFormat,
     onCopy: () -> Unit,
     onTranscriptDraftChanged: (String) -> Unit,
     onExport: (TranscriptExportFormat) -> Unit,
+    onExportFormatChanged: (TranscriptExportFormat) -> Unit,
     modifier: Modifier,
     fillAvailableHeight: Boolean,
 ) {
@@ -683,15 +1067,14 @@ private fun TranscriptEditorPanel(
         }
         return
     }
+    val resultTaskId = requireNotNull(task).id
+    var selectedExportFormat by rememberSaveable(resultTaskId) { mutableStateOf(lastExportFormat) }
+    LaunchedEffect(lastExportFormat) {
+        selectedExportFormat = lastExportFormat
+    }
+    var exportFormatMenuExpanded by rememberSaveable(resultTaskId) { mutableStateOf(false) }
 
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(7.dp)) {
-        state.performanceSummary?.let { summary ->
-            Text(
-                formatPerformanceSeconds(summary),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text("可编辑转写文字", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.weight(1f))
@@ -711,23 +1094,62 @@ private fun TranscriptEditorPanel(
             },
             label = { Text("转写文字") },
         )
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            TranscriptExportFormat.entries.forEach { format ->
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(modifier = Modifier.weight(1f)) {
                 OutlinedButton(
-                    onClick = { onExport(format) },
+                    onClick = { exportFormatMenuExpanded = true },
                     enabled = !state.isExporting,
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(horizontal = 2.dp),
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text(if (format == TranscriptExportFormat.MARKDOWN) "MD" else format.name)
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            if (selectedExportFormat == TranscriptExportFormat.MARKDOWN) "MD" else selectedExportFormat.name,
+                            modifier = Modifier.align(Alignment.Center),
+                        )
+                        Icon(
+                            Icons.Filled.ArrowDropDown,
+                            contentDescription = "选择导出格式",
+                            modifier = Modifier.align(Alignment.CenterEnd),
+                        )
+                    }
+                }
+                DropdownMenu(
+                    expanded = exportFormatMenuExpanded,
+                    onDismissRequest = { exportFormatMenuExpanded = false },
+                ) {
+                    TranscriptExportFormat.entries.forEach { format ->
+                        DropdownMenuItem(
+                            text = { Text(if (format == TranscriptExportFormat.MARKDOWN) "MD" else format.name) },
+                            onClick = {
+                                selectedExportFormat = format
+                                onExportFormatChanged(format)
+                                exportFormatMenuExpanded = false
+                            },
+                        )
+                    }
                 }
             }
+            Button(
+                onClick = { onExport(selectedExportFormat) },
+                enabled = !state.isExporting,
+                modifier = Modifier.weight(1f),
+            ) { Text("导出") }
         }
-        Text(
-            "SRT 保留原始时间轴分段，不套用全文编辑。",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        state.exportFeedback?.let { feedback ->
+            Text(
+                feedback.message,
+                style = MaterialTheme.typography.bodySmall,
+                color = when (feedback.tone) {
+                    ExportFeedbackTone.WORKING -> MaterialTheme.colorScheme.onSurfaceVariant
+                    ExportFeedbackTone.SUCCESS -> MaterialTheme.colorScheme.primary
+                    ExportFeedbackTone.ERROR -> MaterialTheme.colorScheme.error
+                },
+            )
+        }
     }
 }
 

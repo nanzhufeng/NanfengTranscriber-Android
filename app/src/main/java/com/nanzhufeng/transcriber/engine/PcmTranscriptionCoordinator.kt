@@ -40,6 +40,11 @@ class PcmTranscriptionCoordinator(
         val segments = resume.segments.toMutableList()
         var detectedLanguage: String? = resume.detectedLanguage
         var processedSamples = resume.processedSamples
+        var requestCount = 0
+        var billableAudioMillis = 0L
+        var inputTokens: Long? = null
+        var outputTokens: Long? = null
+        var totalTokens: Long? = null
 
         try {
             FileChannel.open(artifact.path, StandardOpenOption.READ).use { channel ->
@@ -53,6 +58,13 @@ class PcmTranscriptionCoordinator(
 
                     val chunkStartMillis = processedSamples * 1_000L / artifact.sampleRate
                     val transcript = engine.transcribe(model, samples, language)
+                    transcript.invocationUsage?.let { usage ->
+                        requestCount += usage.requestCount
+                        billableAudioMillis += usage.billableAudioMillis
+                        inputTokens = inputTokens.plusReported(usage.inputTokens)
+                        outputTokens = outputTokens.plusReported(usage.outputTokens)
+                        totalTokens = totalTokens.plusReported(usage.totalTokens)
+                    }
                     if (detectedLanguage == null) detectedLanguage = transcript.detectedLanguage
                     transcript.segments.forEach { segment ->
                         segments += segment.copy(
@@ -79,10 +91,22 @@ class PcmTranscriptionCoordinator(
             }
         } catch (cancelled: CancellationException) {
             throw cancelled
+        } catch (error: EngineTranscriptionException) {
+            return@withContext PcmTranscriptionResult.Failure(
+                message = error.userMessage,
+                technicalDetail = error.safeTechnicalDetail,
+                errorCode = error.errorCode,
+                requestCount = requestCount + if (error.providerRequestAttempted) 1 else 0,
+                billableAudioMillis = billableAudioMillis + error.providerAttemptedAudioMillis,
+                inputTokens = inputTokens,
+                outputTokens = outputTokens,
+                totalTokens = totalTokens,
+            )
         } catch (error: IOException) {
             return@withContext PcmTranscriptionResult.Failure(
                 message = "读取转写音频失败，可重新准备此任务",
                 technicalDetail = error.message,
+                errorCode = "PCM_READ_FAILED",
             )
         }
 
@@ -90,6 +114,7 @@ class PcmTranscriptionCoordinator(
             return@withContext PcmTranscriptionResult.Failure(
                 message = "PCM 文件提前结束，任务需要重新准备",
                 technicalDetail = "expected=${artifact.sampleCount}, actual=$processedSamples",
+                errorCode = "PCM_TRUNCATED",
             )
         }
         PcmTranscriptionResult.Success(
@@ -98,6 +123,11 @@ class PcmTranscriptionCoordinator(
                 segments = segments,
             ),
             processedSamples = processedSamples,
+            requestCount = requestCount,
+            billableAudioMillis = billableAudioMillis,
+            inputTokens = inputTokens,
+            outputTokens = outputTokens,
+            totalTokens = totalTokens,
         )
     }
 
@@ -115,6 +145,12 @@ class PcmTranscriptionCoordinator(
     private companion object {
         const val PCM16_BYTES_PER_SAMPLE = 2L
     }
+}
+
+private fun Long?.plusReported(next: Long?): Long? = when {
+    next == null -> this
+    this == null -> next
+    else -> this + next
 }
 
 data class PcmTranscriptionResume(
@@ -139,10 +175,21 @@ sealed interface PcmTranscriptionResult {
     data class Success(
         val transcript: EngineTranscript,
         val processedSamples: Long,
+        val requestCount: Int = 0,
+        val billableAudioMillis: Long = 0L,
+        val inputTokens: Long? = null,
+        val outputTokens: Long? = null,
+        val totalTokens: Long? = null,
     ) : PcmTranscriptionResult
 
     data class Failure(
         val message: String,
         val technicalDetail: String? = null,
+        val errorCode: String = "TRANSCRIPTION_FAILED",
+        val requestCount: Int = 0,
+        val billableAudioMillis: Long = 0L,
+        val inputTokens: Long? = null,
+        val outputTokens: Long? = null,
+        val totalTokens: Long? = null,
     ) : PcmTranscriptionResult
 }

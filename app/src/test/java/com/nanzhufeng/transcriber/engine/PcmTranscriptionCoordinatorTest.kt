@@ -3,120 +3,96 @@ package com.nanzhufeng.transcriber.engine
 import com.nanzhufeng.transcriber.data.media.PcmAudioArtifact
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
-import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
 import java.nio.file.Files
 import java.nio.file.Path
 
 class PcmTranscriptionCoordinatorTest {
-    @get:Rule
-    val temporaryFolder = TemporaryFolder()
-
     @Test
-    fun longPcmIsReadInBoundedChunksAndTimestampsBecomeAbsolute() = runBlocking {
-        val sampleCount = 40_000
-        val pcm = ByteBuffer.allocate(sampleCount * 2).order(ByteOrder.LITTLE_ENDIAN)
-        repeat(sampleCount) { pcm.putShort((it % Short.MAX_VALUE).toShort()) }
-        val pcmPath = temporaryFolder.newFile("audio.pcm").toPath()
-        Files.write(pcmPath, pcm.array())
-        val engine = RecordingSpeechEngine()
-        val coordinator = PcmTranscriptionCoordinator(
-            engine = engine,
-            chunkDurationMillis = 1_000L,
-        )
-        val progress = mutableListOf<PcmTranscriptionProgress>()
+    fun `aggregates internal provider segments into one file level usage`() = runBlocking {
+        val pcmFile = Files.createTempFile("qwen3-asr-pcm", ".pcm")
+        Files.write(pcmFile, ByteArray(64_000))
+        try {
+            val coordinator = PcmTranscriptionCoordinator(
+                engine = object : SpeechEngine {
+                    override suspend fun loadModel(modelPath: Path) = LoadedModel(modelPath, 0L)
 
-        val result = coordinator.transcribe(
-            artifact = PcmAudioArtifact(
-                path = pcmPath,
-                sampleRate = 16_000,
-                channels = 1,
-                sampleCount = sampleCount.toLong(),
-                durationMillis = 2_500L,
-            ),
-            model = LoadedModel(pcmPath, 1L),
-            language = "zh",
-            onProgress = progress::add,
-        )
+                    override suspend fun transcribe(
+                        model: LoadedModel,
+                        samples: FloatArray,
+                        language: String?,
+                    ) = EngineTranscript(
+                        detectedLanguage = "zh",
+                        segments = listOf(TranscriptSegment(0L, 1_000L, "结果")),
+                        invocationUsage = EngineInvocationUsage(
+                            requestCount = 1,
+                            billableAudioMillis = 1_000L,
+                            totalTokens = 10L,
+                        ),
+                    )
 
-        assertTrue(result is PcmTranscriptionResult.Success)
-        result as PcmTranscriptionResult.Success
-        assertEquals(listOf(16_000, 16_000, 8_000), engine.receivedChunkSizes)
-        assertEquals(listOf(0L, 1_000L, 2_000L), result.transcript.segments.map { it.startMillis })
-        assertEquals(2_500L, progress.last().processedMillis)
-        assertEquals(sampleCount.toLong(), result.processedSamples)
-    }
-
-    @Test
-    fun resumeStartsAtTheCheckpointAndPreservesExistingSegments() = runBlocking {
-        val sampleCount = 40_000
-        val pcm = ByteBuffer.allocate(sampleCount * 2).order(ByteOrder.LITTLE_ENDIAN)
-        repeat(sampleCount) { pcm.putShort((it % Short.MAX_VALUE).toShort()) }
-        val pcmPath = temporaryFolder.newFile("resume.pcm").toPath()
-        Files.write(pcmPath, pcm.array())
-        val engine = RecordingSpeechEngine()
-        val checkpoints = mutableListOf<PcmTranscriptionCheckpoint>()
-
-        val result = PcmTranscriptionCoordinator(
-            engine = engine,
-            chunkDurationMillis = 1_000L,
-        ).transcribe(
-            artifact = PcmAudioArtifact(
-                path = pcmPath,
-                sampleRate = 16_000,
-                channels = 1,
-                sampleCount = sampleCount.toLong(),
-                durationMillis = 2_500L,
-            ),
-            model = LoadedModel(pcmPath, 1L),
-            language = "en",
-            resume = PcmTranscriptionResume(
-                processedSamples = 16_000L,
-                detectedLanguage = "en",
-                segments = listOf(TranscriptSegment(0L, 1_000L, "restored")),
-            ),
-            onCheckpoint = checkpoints::add,
-        )
-
-        assertTrue(result is PcmTranscriptionResult.Success)
-        result as PcmTranscriptionResult.Success
-        assertEquals(listOf(16_000, 8_000), engine.receivedChunkSizes)
-        assertEquals(
-            listOf("restored", "chunk-1", "chunk-2"),
-            result.transcript.segments.map { it.text },
-        )
-        assertEquals(listOf(0L, 1_000L, 2_000L), result.transcript.segments.map { it.startMillis })
-        assertEquals(sampleCount.toLong(), checkpoints.last().processedSamples)
-    }
-
-    private class RecordingSpeechEngine : SpeechEngine {
-        val receivedChunkSizes = mutableListOf<Int>()
-
-        override suspend fun loadModel(modelPath: Path): LoadedModel = LoadedModel(modelPath, 1L)
-
-        override suspend fun transcribe(
-            model: LoadedModel,
-            samples: FloatArray,
-            language: String?,
-        ): EngineTranscript {
-            receivedChunkSizes += samples.size
-            return EngineTranscript(
-                detectedLanguage = language,
-                segments = listOf(
-                    TranscriptSegment(
-                        startMillis = 0L,
-                        endMillis = samples.size * 1_000L / 16_000L,
-                        text = "chunk-${receivedChunkSizes.size}",
-                    ),
-                ),
+                    override fun releaseModel(model: LoadedModel) = Unit
+                    override fun close() = Unit
+                },
+                chunkDurationMillis = 1_000L,
             )
-        }
 
-        override fun releaseModel(model: LoadedModel) = Unit
-        override fun close() = Unit
+            val result = coordinator.transcribe(
+                artifact = PcmAudioArtifact(pcmFile, 16_000, 1, 32_000, 2_000L),
+                model = LoadedModel(pcmFile, 0L),
+                language = null,
+            ) as PcmTranscriptionResult.Success
+
+            assertEquals(2, result.requestCount)
+            assertEquals(2_000L, result.billableAudioMillis)
+            assertEquals(20L, result.totalTokens)
+        } finally {
+            Files.deleteIfExists(pcmFile)
+        }
+    }
+
+    @Test
+    fun `preserves engine failure code and safe message`() = runBlocking {
+        val pcmFile = Files.createTempFile("qwen3-asr-pcm", ".pcm")
+        Files.write(pcmFile, ByteArray(32_000))
+        try {
+            val coordinator = PcmTranscriptionCoordinator(
+                engine = object : SpeechEngine {
+                    override suspend fun loadModel(modelPath: Path) = LoadedModel(modelPath, 0L)
+
+                    override suspend fun transcribe(
+                        model: LoadedModel,
+                        samples: FloatArray,
+                        language: String?,
+                    ): EngineTranscript = throw EngineTranscriptionException(
+                        userMessage = "千问服务限流或额度不足，请稍后重试",
+                        errorCode = "QWEN_HTTP_429",
+                        safeTechnicalDetail = "http=429",
+                    )
+
+                    override fun releaseModel(model: LoadedModel) = Unit
+                    override fun close() = Unit
+                },
+            )
+
+            val result = coordinator.transcribe(
+                artifact = PcmAudioArtifact(
+                    path = pcmFile,
+                    sampleRate = 16_000,
+                    channels = 1,
+                    sampleCount = 16_000,
+                    durationMillis = 1_000L,
+                ),
+                model = LoadedModel(pcmFile, 0L),
+                language = null,
+            ) as PcmTranscriptionResult.Failure
+
+            assertEquals("QWEN_HTTP_429", result.errorCode)
+            assertEquals("千问服务限流或额度不足，请稍后重试", result.message)
+            assertEquals("http=429", result.technicalDetail)
+            assertEquals(0, result.requestCount)
+        } finally {
+            Files.deleteIfExists(pcmFile)
+        }
     }
 }

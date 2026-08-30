@@ -7,7 +7,9 @@ Windows 版“南枫转写”的独立 Android 正式项目。项目采用原生
 
 ## 当前阶段
 
-当前暂停在 `0.14.0-final-regression (15)`：已实现三档模型长期缓存与备份管理、队列级热会话、真实音视频转写、内嵌文字字幕优先提取、批量/文件夹/分享输入、后台顺序队列、分块断点、可编辑历史与四格式导出。版本 15 已通过自动门禁和 API 35 模拟器真实字幕/导出回归，但转写准确度不符合成品要求，且尚未完成该版 OPPO 真机覆盖、数据保留和长任务闭环。准确边界见 [`docs/CURRENT_HANDOFF.md`](docs/CURRENT_HANDOFF.md)。
+当前工作树的模型入口已收敛为两个明确选项：**本地标准：SenseVoiceSmall INT8 + sherpa-onnx**、**高精度：Qwen3-ASR API 直接转写**。Qwen 不是转写完成后的润色服务；选择它时会明确提示音频分段将发送至千问官方服务。设置页不展示服务地址或自由填写的模型名，API Key 仅以 Android Keystore 安全保存。调用记录按完整源文件聚合，并显示版本化的人民币费用估算。完整状态与验收边界见 [`docs/CURRENT_HANDOFF.md`](docs/CURRENT_HANDOFF.md)。
+
+SenseVoice 模型权重不随 APK 分发；当前固定 ONNX 制品尚缺可归档的制品级许可，因此不得用于正式默认档或再分发。完整边界见 [`docs/model-license-status.md`](docs/model-license-status.md)。
 
 ## 下载未完成测试版
 
@@ -40,4 +42,4 @@ ANDROID_SDK_ROOT="/Users/nanzhufeng/Library/Android/sdk" \
 ./gradlew testDebugUnitTest lintDebug lintVitalRelease assembleDebug assembleRelease
 ```
 
-调试和 Release APK 的文件名固定为 `南枫转写.apk`。正式发布仍需版本 15 真机覆盖、系统杀进程恢复、60 分钟/两小时长测和模型来源/许可证复核。
+调试和 Release APK 的文件名固定为 `南枫转写.apk`。正式发布仍需隔离模拟器完整回归、OPPO 同签名覆盖、系统杀进程恢复、60 分钟/两小时长测和模型来源/许可证复核。
