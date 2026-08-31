@@ -16,10 +16,13 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -54,7 +57,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Slider
@@ -93,6 +95,7 @@ import com.nanzhufeng.transcriber.ui.TranscriptionUiState
 import com.nanzhufeng.transcriber.ui.ExportFeedbackTone
 import com.nanzhufeng.transcriber.ui.theme.TranscriptPreviewOrange
 import com.nanzhufeng.transcriber.ui.components.TaskMediaPreview
+import com.nanzhufeng.transcriber.ui.components.SubtleActionButton
 import com.nanzhufeng.transcriber.ui.components.WorkbenchCard
 import com.nanzhufeng.transcriber.ui.components.formatDateTime
 import com.nanzhufeng.transcriber.ui.components.formatDuration
@@ -154,8 +157,8 @@ fun HistoryScreen(
             columns = GridCells.Fixed(if (expanded) 2 else 1),
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalArrangement = Arrangement.spacedBy(if (expanded) 10.dp else 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(if (expanded) 12.dp else 14.dp),
         ) {
             item(span = { GridItemSpan(maxLineSpan) }) {
                 Text(
@@ -334,6 +337,7 @@ private fun HistoryActionBar(
                 selected = true,
                 onClick = { periodMenuExpanded = true },
                 label = { Text(period.label) },
+                border = null,
                 colors = FilterChipDefaults.filterChipColors(
                     selectedContainerColor = MaterialTheme.colorScheme.primary,
                     selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
@@ -389,28 +393,45 @@ private fun CompletedTimelineItem(
         OfficialModelCatalog.find(task.modelId)?.displayName ?: task.modelId
     }
     val primaryAction = if (selectionMode) onSelectionChange else onOpen
-    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Column(modifier = Modifier.width(48.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            IconButton(onClick = if (selectionMode) onSelectionChange else ({}), modifier = Modifier.size(if (expanded) 30.dp else 28.dp)) {
-                Icon(
-                    if (selectionMode && !selected) Icons.Outlined.RadioButtonUnchecked else Icons.Filled.CheckCircle,
-                    contentDescription = if (selectionMode) "选择 ${task.sourceDisplayName}" else "已完成",
-                    tint = if (selected || !selectionMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(if (expanded) 24.dp else 22.dp),
-                )
-            }
-            Text(
-                formatHistoryClock(task.updatedAtMillis),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelSmall,
-            )
+    Row(
+        modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(modifier = Modifier.width(48.dp).fillMaxHeight()) {
             Box(
-                Modifier.padding(top = 4.dp).width(1.dp).height(if (expanded) 60.dp else 54.dp)
+                Modifier
+                    .align(Alignment.Center)
+                    .offset(y = 48.dp)
+                    .width(1.dp)
+                    .height(if (expanded) 60.dp else 54.dp)
                     .background(Color(0xFFD4E7DA)),
             )
+            Column(
+                modifier = Modifier.align(Alignment.Center),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                IconButton(onClick = if (selectionMode) onSelectionChange else ({}), modifier = Modifier.size(if (expanded) 30.dp else 28.dp)) {
+                    Icon(
+                        if (selectionMode && !selected) Icons.Outlined.RadioButtonUnchecked else Icons.Filled.CheckCircle,
+                        contentDescription = if (selectionMode) "选择 ${task.sourceDisplayName}" else "已完成",
+                        tint = if (selected || !selectionMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(if (expanded) 24.dp else 22.dp),
+                    )
+                }
+                Text(
+                    formatHistoryClock(task.updatedAtMillis),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelSmall,
+                )
+            }
         }
         WorkbenchCard(
             modifier = Modifier.weight(1f).clickable(onClick = primaryAction),
+            contentPadding = if (expanded) {
+                PaddingValues(horizontal = 12.dp, vertical = 10.dp)
+            } else {
+                PaddingValues(16.dp)
+            },
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 TaskMediaPreview(
@@ -419,20 +440,23 @@ private fun CompletedTimelineItem(
                     stagedInputPath = task.stagedInputPath,
                     cacheTaskId = task.id,
                     modifier = Modifier.size(
-                        width = if (expanded) 104.dp else 76.dp,
-                        height = if (expanded) 78.dp else 64.dp,
+                        width = if (expanded) 84.dp else 76.dp,
+                        height = if (expanded) 64.dp else 64.dp,
                     ),
                     onClick = if (selectionMode) onSelectionChange else onOpenMedia,
                 )
-                Spacer(Modifier.width(if (expanded) 12.dp else 8.dp))
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Spacer(Modifier.width(if (expanded) 8.dp else 8.dp))
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(if (expanded) 2.dp else 3.dp),
+                ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             task.sourceDisplayName,
                             modifier = Modifier.weight(1f),
-                            maxLines = if (expanded) 2 else 1,
+                            maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            style = if (expanded) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleSmall,
+                            style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.SemiBold,
                         )
                         if (!selectionMode) Box {
@@ -543,6 +567,7 @@ private fun CompletedTimelineItem(
 fun HistoryMediaReviewPane(
     task: TranscriptionTaskEntity,
     state: TranscriptionUiState,
+    expanded: Boolean,
     lastExportFormat: TranscriptExportFormat,
     initialVideoPositionMillis: Long,
     initialVideoPlayWhenReady: Boolean,
@@ -636,6 +661,7 @@ fun HistoryMediaReviewPane(
                         } else {
                             HistoryVideoReview(
                                 uri = requireNotNull(playableUri),
+                                expanded = expanded,
                                 initialPositionMillis = initialVideoPositionMillis,
                                 initialPlayWhenReady = initialVideoPlayWhenReady,
                                 onPlaybackSnapshot = onVideoPlaybackSnapshot,
@@ -665,11 +691,12 @@ fun HistoryMediaReviewPane(
 
 /**
  * VideoView is deliberately kept as the decoder only.  The controls are Compose content inside
- * this clipped 16:9 frame, so Android's MediaController cannot draw outside the source preview.
+ * this clipped frame, so Android's MediaController cannot draw outside the source preview.
  */
 @Composable
 private fun HistoryVideoReview(
     uri: Uri,
+    expanded: Boolean,
     initialPositionMillis: Long,
     initialPlayWhenReady: Boolean,
     onPlaybackSnapshot: (positionMillis: Long, playWhenReady: Boolean) -> Unit,
@@ -720,7 +747,10 @@ private fun HistoryVideoReview(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .aspectRatio(16f / 9f)
+            // Keep the compact/outer screen unchanged.  On the expanded inner screen, 8:3
+            // keeps the full width while reducing the former 16:9 frame height by one third,
+            // so the transcript editor retains the released reading space.
+            .aspectRatio(if (expanded) 8f / 3f else 16f / 9f)
             .clip(MaterialTheme.shapes.large)
             .background(Color.Black),
     ) {
@@ -1005,7 +1035,7 @@ private fun HistoryResultPane(
 
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background,
+        color = Color.White,
         tonalElevation = 0.dp,
     ) {
         Column(
@@ -1076,7 +1106,7 @@ private fun TranscriptEditorPanel(
 
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(7.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("可编辑转写文字", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+            Text("转写文字", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.weight(1f))
             TextButton(onClick = onCopy) {
                 Icon(Icons.Outlined.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -1092,7 +1122,14 @@ private fun TranscriptEditorPanel(
             } else {
                 Modifier.fillMaxWidth().heightIn(min = 240.dp, max = 460.dp)
             },
-            label = { Text("转写文字") },
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = Color(0xFFF4F5F4),
+                unfocusedContainerColor = Color(0xFFF4F5F4),
+                disabledContainerColor = Color(0xFFF4F5F4),
+                focusedBorderColor = Color.Transparent,
+                unfocusedBorderColor = Color.Transparent,
+                disabledBorderColor = Color.Transparent,
+            ),
         )
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -1100,20 +1137,25 @@ private fun TranscriptEditorPanel(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(modifier = Modifier.weight(1f)) {
-                OutlinedButton(
+                SubtleActionButton(
                     onClick = { exportFormatMenuExpanded = true },
                     enabled = !state.isExporting,
                     modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(start = 12.dp, top = 8.dp, end = 8.dp, bottom = 8.dp),
                 ) {
-                    Box(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
                         Text(
                             if (selectedExportFormat == TranscriptExportFormat.MARKDOWN) "MD" else selectedExportFormat.name,
-                            modifier = Modifier.align(Alignment.Center),
+                            modifier = Modifier.weight(1f),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                         )
                         Icon(
                             Icons.Filled.ArrowDropDown,
                             contentDescription = "选择导出格式",
-                            modifier = Modifier.align(Alignment.CenterEnd),
+                            modifier = Modifier.size(20.dp),
                         )
                     }
                 }

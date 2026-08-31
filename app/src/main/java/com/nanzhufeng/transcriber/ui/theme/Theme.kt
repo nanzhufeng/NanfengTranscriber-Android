@@ -50,28 +50,28 @@ object NanfengSkinCatalog {
 
 private val SkinPalettes = mapOf(
     "charcoal_relief" to NanfengSkinPalette(
-        Color(0xFFF5F4F1), Color(0xFFFFFEFC), Color(0xFF2B2522), Color(0xFF6ECC54),
-        Color(0xFFEB5C20), Color(0xFF261F1C), Color(0xFF6F625B), Color(0xFFE8F4E3),
+        Color(0xFFF6F6F4), Color(0xFFFFFEFC), Color(0xFF2B2522), Color(0xFF6ECC54),
+        Color(0xFFEB5C20), Color(0xFF261F1C), Color(0xFF6F625B), Color(0xFFF0F2F0),
     ),
     "forest_maple" to NanfengSkinPalette(
-        Color(0xFFEBF3E9), Color(0xFFFFFEFB), Color(0xFF1F4D3B), Color(0xFF2F6A4A),
-        Color(0xFFD87832), Color(0xFF203329), Color(0xFF607068), Color(0xFFE2F0E5),
+        Color(0xFFF0F3F0), Color(0xFFFFFEFB), Color(0xFF1F4D3B), Color(0xFF2F6A4A),
+        Color(0xFFD87832), Color(0xFF203329), Color(0xFF607068), Color(0xFFE9EFEB),
     ),
     "burgundy_frost" to NanfengSkinPalette(
-        Color(0xFFF7F2F3), Color(0xFFFFFEFC), Color(0xFF470125), Color(0xFF982A54),
-        Color(0xFFEB5C20), Color(0xFF351520), Color(0xFF755865), Color(0xFFF5E4EA),
+        Color(0xFFF7F4F4), Color(0xFFFFFEFC), Color(0xFF470125), Color(0xFF982A54),
+        Color(0xFFEB5C20), Color(0xFF351520), Color(0xFF755865), Color(0xFFF4EAEE),
     ),
     "burgundy_ribbon" to NanfengSkinPalette(
-        Color(0xFFF7F2F3), Color(0xFFFFFEFC), Color(0xFF35001C), Color(0xFF7D153E),
-        Color(0xFFD6A42A), Color(0xFF32131E), Color(0xFF70525F), Color(0xFFF3E2E9),
+        Color(0xFFF7F4F4), Color(0xFFFFFEFC), Color(0xFF35001C), Color(0xFF7D153E),
+        Color(0xFFD6A42A), Color(0xFF32131E), Color(0xFF70525F), Color(0xFFF4EAEE),
     ),
     "brown_contour" to NanfengSkinPalette(
-        Color(0xFFF5F2EF), Color(0xFFFFFEFC), Color(0xFF4A2D22), Color(0xFF018B8D),
-        Color(0xFFC77A3F), Color(0xFF30221D), Color(0xFF6D5A52), Color(0xFFDDF2F1),
+        Color(0xFFF6F4F2), Color(0xFFFFFEFC), Color(0xFF4A2D22), Color(0xFF018B8D),
+        Color(0xFFC77A3F), Color(0xFF30221D), Color(0xFF6D5A52), Color(0xFFE8F0EF),
     ),
     "jade_satin" to NanfengSkinPalette(
-        Color(0xFFEAF3F0), Color(0xFFFEFFFE), Color(0xFF234B47), Color(0xFF018B8D),
-        Color(0xFFEB5C20), Color(0xFF203330), Color(0xFF5D6F6A), Color(0xFFDDF2EE),
+        Color(0xFFF0F4F2), Color(0xFFFEFFFE), Color(0xFF234B47), Color(0xFF018B8D),
+        Color(0xFFEB5C20), Color(0xFF203330), Color(0xFF5D6F6A), Color(0xFFE8F0ED),
     ),
 )
 

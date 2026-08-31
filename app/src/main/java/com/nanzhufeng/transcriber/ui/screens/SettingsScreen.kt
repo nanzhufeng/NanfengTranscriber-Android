@@ -1,7 +1,6 @@
 package com.nanzhufeng.transcriber.ui.screens
 
 import android.net.Uri
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
@@ -29,7 +28,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -43,6 +41,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.font.FontWeight
@@ -58,6 +57,7 @@ import com.nanzhufeng.transcriber.domain.model.ModelInstallState
 import com.nanzhufeng.transcriber.ui.TranscriptionUiState
 import com.nanzhufeng.transcriber.ui.components.SectionHeading
 import com.nanzhufeng.transcriber.ui.components.StatusPill
+import com.nanzhufeng.transcriber.ui.components.SubtleActionButton
 import com.nanzhufeng.transcriber.ui.components.WorkbenchCard
 import com.nanzhufeng.transcriber.ui.components.formatBytes
 import com.nanzhufeng.transcriber.ui.theme.AttentionOchre
@@ -478,12 +478,12 @@ private fun ModelCacheCard(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            OutlinedButton(
+            SubtleActionButton(
                 onClick = onImportModel,
                 enabled = !state.isBusy && state.modelState != ModelInstallState.READY,
                 modifier = Modifier.weight(1f),
             ) { Text("导入备份") }
-            OutlinedButton(
+            SubtleActionButton(
                 onClick = onVerifyModel,
                 enabled = !state.isBusy && state.modelState == ModelInstallState.READY,
                 modifier = Modifier.weight(1f),
@@ -493,7 +493,7 @@ private fun ModelCacheCard(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            OutlinedButton(
+            SubtleActionButton(
                 onClick = onExportModel,
                 enabled = !state.isBusy && state.modelState == ModelInstallState.READY,
                 modifier = Modifier.weight(1f),
@@ -524,11 +524,7 @@ private fun ModelChoiceRow(
                 onClick = onClick,
             ),
         shape = RoundedCornerShape(14.dp),
-        color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
-        border = BorderStroke(
-            width = 1.dp,
-            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
-        ),
+        color = if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Black.copy(alpha = 0.045f),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),

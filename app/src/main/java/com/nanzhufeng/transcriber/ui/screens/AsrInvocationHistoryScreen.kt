@@ -18,7 +18,6 @@ import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -30,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import com.nanzhufeng.transcriber.domain.invocation.AsrInvocationRecord
 import com.nanzhufeng.transcriber.domain.invocation.AsrInvocationStatus
 import com.nanzhufeng.transcriber.ui.components.SectionHeading
+import com.nanzhufeng.transcriber.ui.components.SubtleActionButton
 import com.nanzhufeng.transcriber.ui.components.WorkbenchCard
 import java.text.SimpleDateFormat
 import java.math.BigDecimal
@@ -49,7 +49,7 @@ fun AsrInvocationLedgerEntry(records: List<AsrInvocationRecord>, onOpen: () -> U
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodySmall,
         )
-        OutlinedButton(
+        SubtleActionButton(
             onClick = onOpen,
             modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
         ) {

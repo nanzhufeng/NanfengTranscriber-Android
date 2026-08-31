@@ -3,7 +3,6 @@ package com.nanzhufeng.transcriber.ui.screens
 import android.app.Activity
 import android.net.Uri
 import android.view.DragEvent
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -52,7 +51,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -87,6 +85,7 @@ import com.nanzhufeng.transcriber.domain.task.TaskSelectionPolicy
 import com.nanzhufeng.transcriber.ui.PendingSourceUi
 import com.nanzhufeng.transcriber.ui.TranscriptionUiState
 import com.nanzhufeng.transcriber.ui.components.SectionHeading
+import com.nanzhufeng.transcriber.ui.components.SubtleActionButton
 import com.nanzhufeng.transcriber.ui.components.TaskMediaPreview
 import com.nanzhufeng.transcriber.ui.components.WorkbenchCard
 import com.nanzhufeng.transcriber.ui.components.formatBytes
@@ -130,7 +129,7 @@ fun HomeScreen(
                 modifier = Modifier.fillMaxWidth().weight(1f),
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                Column(modifier = Modifier.weight(1.55f).fillMaxHeight()) {
                     WorkflowOverview(state, tasks)
                     Spacer(Modifier.height(12.dp))
                     CurrentWorkCard(
@@ -151,14 +150,23 @@ fun HomeScreen(
                         modifier = Modifier.weight(1f),
                     )
                 }
-                ActionDock(
-                    state = state,
-                    onChooseSource = onChooseSource,
-                    onChooseFolder = onChooseFolder,
-                    onDropSources = onDropSources,
-                    onOpenSettings = onOpenSettings,
-                    modifier = Modifier.width(336.dp),
-                )
+                Column(
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    TaskOverallProgressCard(
+                        state = state,
+                        tasks = tasks,
+                    )
+                    TranscriptionModelCard(state = state)
+                    ActionDock(
+                        state = state,
+                        onChooseSource = onChooseSource,
+                        onChooseFolder = onChooseFolder,
+                        onDropSources = onDropSources,
+                        onOpenSettings = onOpenSettings,
+                    )
+                }
             }
         } else {
             WorkflowOverview(state, tasks)
@@ -210,6 +218,128 @@ fun HomeScreen(
             dismissButton = {
                 TextButton(onClick = { pendingDelete = null }) { Text("取消") }
             },
+        )
+    }
+}
+
+private data class HomeTaskSummary(
+    val totalCount: Int,
+    val completedCount: Int,
+    val activeCount: Int,
+    val waitingCount: Int,
+    val totalProgress: Float,
+)
+
+private fun homeTaskSummary(
+    state: TranscriptionUiState,
+    tasks: List<TranscriptionTaskEntity>,
+): HomeTaskSummary {
+    val activeStates = setOf(
+        TranscriptionTaskState.PREPARING,
+        TranscriptionTaskState.TRANSCRIBING,
+        TranscriptionTaskState.EXPORTING,
+    )
+    val completedCount = tasks.count { taskState(it) == TranscriptionTaskState.COMPLETED }
+    val activeTasks = tasks.filter { taskState(it) in activeStates }
+    val waitingCount = tasks.count { taskState(it) == TranscriptionTaskState.QUEUED }
+    val completedWork = completedCount.toFloat()
+    val activeWork = activeTasks.sumOf { task ->
+        val persistedProgress = task.totalDurationMillis
+            ?.takeIf { it > 0L }
+            ?.let { task.progressMillis.toFloat() / it.toFloat() }
+            ?.coerceIn(0f, 1f)
+        when {
+            task.id == state.activeTaskId -> state.progress ?: persistedProgress ?: 0f
+            else -> persistedProgress ?: 0f
+        }.toDouble()
+    }.toFloat()
+    val totalProgress = if (tasks.isEmpty()) 0f else {
+        ((completedWork + activeWork) / tasks.size.toFloat()).coerceIn(0f, 1f)
+    }
+    return HomeTaskSummary(
+        totalCount = tasks.size,
+        completedCount = completedCount,
+        activeCount = activeTasks.size,
+        waitingCount = waitingCount,
+        totalProgress = totalProgress,
+    )
+}
+
+@Composable
+private fun TaskOverallProgressCard(
+    state: TranscriptionUiState,
+    tasks: List<TranscriptionTaskEntity>,
+) {
+    val summary = remember(state.activeTaskId, state.progress, tasks) {
+        homeTaskSummary(state, tasks)
+    }
+    WorkbenchCard {
+        Text(
+            text = "任务总进度",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        Spacer(Modifier.height(12.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Text(
+                text = "${(summary.totalProgress * 100).toInt()}%",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(
+                    text = "共 ${summary.totalCount} 项 · 已完成 ${summary.completedCount}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = "进行中 ${summary.activeCount} · 等待中 ${summary.waitingCount}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        LinearProgressIndicator(
+            progress = { summary.totalProgress },
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+@Composable
+private fun TranscriptionModelCard(state: TranscriptionUiState) {
+    val runtimeDescription = when {
+        !state.modelRequiresLocalCache -> "Qwen3-ASR · 云端直接转写"
+        state.modelState == ModelInstallState.READY -> "本地运行 · 已缓存"
+        state.modelState == ModelInstallState.DOWNLOADING -> "本地运行 · 正在下载"
+        state.modelState == ModelInstallState.VERIFYING -> "本地运行 · 正在校验"
+        else -> "本地运行 · 待准备"
+    }
+    WorkbenchCard {
+        Text(
+            text = "转写模型",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        Spacer(Modifier.height(10.dp))
+        Text(
+            text = state.modelDisplayName,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = runtimeDescription,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
@@ -432,6 +562,11 @@ private fun PendingSourceRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(7.dp),
     ) {
+        QueueSelectionButton(
+            selected = source.selected,
+            contentDescription = if (source.selected) "取消选择 ${source.displayName}" else "选择 ${source.displayName}",
+            onClick = onToggleSelection,
+        )
         Box(
             modifier = Modifier.size(
                 width = if (expanded) 92.dp else 76.dp,
@@ -444,18 +579,6 @@ private fun PendingSourceRow(
                 stagedInputPath = source.stagedInputPath,
                 modifier = Modifier.fillMaxSize(),
             )
-            IconButton(
-                onClick = onToggleSelection,
-                modifier = Modifier.align(Alignment.TopStart).size(30.dp).clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.88f)),
-            ) {
-                Icon(
-                    imageVector = if (source.selected) Icons.Filled.CheckCircle else Icons.Filled.RadioButtonUnchecked,
-                    contentDescription = if (source.selected) "取消选择 ${source.displayName}" else "选择 ${source.displayName}",
-                    tint = if (source.selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-                    modifier = Modifier.size(22.dp),
-                )
-            }
         }
         Column(
             modifier = Modifier
@@ -486,15 +609,30 @@ private fun PendingSourceRow(
             )
         }
         QueueIconButton(
-            icon = Icons.Outlined.Settings,
-            description = "编辑 ${source.displayName} 的转写参数",
-            onClick = onEdit,
-        )
-        QueueIconButton(
             icon = Icons.Outlined.DeleteOutline,
             description = "移除 ${source.displayName}",
             tint = MaterialTheme.colorScheme.error,
             onClick = onDelete,
+        )
+    }
+}
+
+@Composable
+private fun QueueSelectionButton(
+    selected: Boolean,
+    contentDescription: String,
+    onClick: () -> Unit,
+) {
+    IconButton(
+        onClick = onClick,
+        modifier = Modifier
+            .size(32.dp),
+    ) {
+        Icon(
+            imageVector = if (selected) Icons.Filled.CheckCircle else Icons.Filled.RadioButtonUnchecked,
+            contentDescription = contentDescription,
+            tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(21.dp),
         )
     }
 }
@@ -618,7 +756,6 @@ private fun TranscriptionQueueRow(
             .clickable(enabled = canExpand) { detailsExpanded = !detailsExpanded },
         shape = RoundedCornerShape(14.dp),
         color = if (active) Color(0xFFFFF3D6) else Color.Transparent,
-        border = if (active) BorderStroke(1.dp, Color(0xFFFFB020)) else null,
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 6.dp),
@@ -629,6 +766,21 @@ private fun TranscriptionQueueRow(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(5.dp),
             ) {
+                if (active) {
+                    QueueActivityMarker(label = taskStateLabel(state), color = color)
+                } else if (selectable) {
+                    QueueSelectionButton(
+                        selected = selected,
+                        contentDescription = if (selected) {
+                            "取消选择 ${task.sourceDisplayName}"
+                        } else {
+                            "选择 ${task.sourceDisplayName}"
+                        },
+                        onClick = onToggleSelection,
+                    )
+                } else {
+                    Spacer(Modifier.width(32.dp))
+                }
                 Box(
                     modifier = Modifier.size(
                         width = if (expanded) 92.dp else 76.dp,
@@ -642,51 +794,6 @@ private fun TranscriptionQueueRow(
                         cacheTaskId = task.id,
                         modifier = Modifier.fillMaxSize(),
                     )
-                    if (active) {
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.Center)
-                                .size(28.dp)
-                                .clip(CircleShape)
-                                .background(Color.White.copy(alpha = 0.88f)),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Downloading,
-                                contentDescription = taskStateLabel(state),
-                                tint = color,
-                                modifier = Modifier.size(18.dp),
-                            )
-                        }
-                    } else {
-                        IconButton(
-                            onClick = onToggleSelection,
-                            enabled = selectable,
-                            modifier = Modifier.align(Alignment.TopStart).size(30.dp).clip(CircleShape)
-                                .background(Color.White.copy(alpha = 0.88f)),
-                        ) {
-                        Icon(
-                            imageVector = when {
-                                selectable && selected -> Icons.Filled.CheckCircle
-                                selectable -> Icons.Filled.RadioButtonUnchecked
-                                state in setOf(
-                                    TranscriptionTaskState.FAILED,
-                                    TranscriptionTaskState.RECOVERY_REQUIRED,
-                                    TranscriptionTaskState.NO_SPEECH,
-                                ) -> Icons.Filled.ErrorOutline
-                                state == TranscriptionTaskState.CANCELLED -> Icons.Filled.RadioButtonUnchecked
-                                else -> Icons.Outlined.AudioFile
-                            },
-                            contentDescription = if (selectable) {
-                                if (selected) "取消选择 ${task.sourceDisplayName}" else "选择 ${task.sourceDisplayName}"
-                            } else {
-                                taskStateLabel(state)
-                            },
-                            tint = if (selectable && selected) MaterialTheme.colorScheme.primary else color,
-                            modifier = Modifier.size(21.dp),
-                        )
-                        }
-                    }
                 }
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
@@ -767,6 +874,21 @@ private fun TranscriptionQueueRow(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun QueueActivityMarker(label: String, color: Color) {
+    Box(
+        modifier = Modifier.size(32.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = Icons.Filled.Downloading,
+            contentDescription = label,
+            tint = color,
+            modifier = Modifier.size(21.dp),
+        )
     }
 }
 
@@ -878,13 +1000,9 @@ private fun ActionDock(
         Spacer(Modifier.height(8.dp))
         Surface(
             modifier = Modifier.fillMaxWidth().clickable(enabled = !state.isBusy, onClick = onChooseSource),
-            color = if (dragActive) MaterialTheme.colorScheme.primaryContainer else Color(0xFFFFF3E8),
+            color = if (dragActive) MaterialTheme.colorScheme.primaryContainer else Color.Black.copy(alpha = 0.055f),
             shape = RoundedCornerShape(12.dp),
-            border = BorderStroke(
-                if (dragActive) 2.dp else 1.dp,
-                if (dragActive) MaterialTheme.colorScheme.primary else TranscriptPreviewOrange.copy(alpha = 0.72f),
-            ),
-            shadowElevation = if (dragActive) 5.dp else 2.dp,
+            shadowElevation = if (dragActive) 2.dp else 0.dp,
         ) {
             Row(
                 modifier = Modifier
@@ -897,7 +1015,7 @@ private fun ActionDock(
                 Icon(
                     Icons.Outlined.FolderOpen,
                     contentDescription = null,
-                    tint = if (dragActive) MaterialTheme.colorScheme.primary else TranscriptPreviewOrange,
+                    tint = if (dragActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
                     state.selectedSourceName ?: if (dragActive) "松手加入转写队列" else "选择音频或视频",
@@ -908,7 +1026,7 @@ private fun ActionDock(
                 )
             }
         }
-        OutlinedButton(
+        SubtleActionButton(
             onClick = onChooseFolder,
             enabled = !state.isBusy,
             modifier = Modifier

@@ -207,6 +207,7 @@ fun NanfengTranscriberApp(
                 HistoryMediaReviewPane(
                     task = task,
                     state = state,
+                    expanded = expanded,
                     lastExportFormat = settings.lastExportFormat,
                     initialVideoPositionMillis = activeVideoPositionMillis,
                     initialVideoPlayWhenReady = activeVideoPlayWhenReady,

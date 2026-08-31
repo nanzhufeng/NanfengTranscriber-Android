@@ -32,6 +32,7 @@ import com.nanzhufeng.transcriber.domain.invocation.AsrInvocationStatus
 import com.nanzhufeng.transcriber.domain.invocation.AsrCostEstimator
 import com.nanzhufeng.transcriber.domain.model.ModelInstallState
 import com.nanzhufeng.transcriber.domain.task.TranscriptionTaskState
+import com.nanzhufeng.transcriber.domain.transcription.LocalTranscriptPunctuationRule
 import com.nanzhufeng.transcriber.domain.transcription.TranscriptCompletionPolicy
 import com.nanzhufeng.transcriber.engine.PcmTranscriptionCoordinator
 import com.nanzhufeng.transcriber.engine.PcmTranscriptionResume
@@ -502,11 +503,18 @@ class TranscriptionTaskRunner(
             }
             val rawDocument = TranscriptDocument(
                 title = queued.sourceDisplayName.substringBeforeLast('.').ifBlank { "南枫转写结果" },
-                segments = success.transcript.segments.map { segment ->
+                segments = success.transcript.segments.mapIndexed { index, segment ->
                     TranscriptDocumentSegment(
                         startMillis = segment.startMillis,
                         endMillis = segment.endMillis,
-                        text = segment.text,
+                        text = if (
+                            taskModel.provider == AsrProviderId.SENSEVOICE &&
+                            index == success.transcript.segments.lastIndex
+                        ) {
+                            LocalTranscriptPunctuationRule.ensureFinalTerminal(segment.text)
+                        } else {
+                            segment.text
+                        },
                     )
                 },
             )
