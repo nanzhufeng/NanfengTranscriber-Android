@@ -125,13 +125,27 @@ fun HomeScreen(
         Spacer(Modifier.height(12.dp))
 
         if (expanded) {
-            Row(
-                modifier = Modifier.fillMaxWidth().weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-            ) {
-                Column(modifier = Modifier.weight(1.55f).fillMaxHeight()) {
-                    WorkflowOverview(state, tasks)
-                    Spacer(Modifier.height(12.dp))
+            Column(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
+                    WorkflowOverview(
+                        state = state,
+                        tasks = tasks,
+                        modifier = Modifier.weight(1.55f),
+                    )
+                    TaskOverallProgressCard(
+                        state = state,
+                        tasks = tasks,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
                     CurrentWorkCard(
                         state = state,
                         tasks = tasks,
@@ -147,25 +161,24 @@ fun HomeScreen(
                         onToggleTaskSelection = onToggleTaskSelection,
                         onSelectAllStartable = onSelectAllStartable,
                         onStart = onStart,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1.55f).fillMaxHeight(),
                     )
-                }
-                Column(
-                    modifier = Modifier.weight(1f).fillMaxHeight(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    TaskOverallProgressCard(
-                        state = state,
-                        tasks = tasks,
-                    )
-                    TranscriptionModelCard(state = state)
-                    ActionDock(
-                        state = state,
-                        onChooseSource = onChooseSource,
-                        onChooseFolder = onChooseFolder,
-                        onDropSources = onDropSources,
-                        onOpenSettings = onOpenSettings,
-                    )
+                    Column(
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        TranscriptionModelCard(
+                            state = state,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        ActionDock(
+                            state = state,
+                            onChooseSource = onChooseSource,
+                            onChooseFolder = onChooseFolder,
+                            onDropSources = onDropSources,
+                            onOpenSettings = onOpenSettings,
+                        )
+                    }
                 }
             }
         } else {
@@ -269,11 +282,12 @@ private fun homeTaskSummary(
 private fun TaskOverallProgressCard(
     state: TranscriptionUiState,
     tasks: List<TranscriptionTaskEntity>,
+    modifier: Modifier = Modifier,
 ) {
     val summary = remember(state.activeTaskId, state.progress, tasks) {
         homeTaskSummary(state, tasks)
     }
-    WorkbenchCard {
+    WorkbenchCard(modifier = modifier.fillMaxWidth()) {
         Text(
             text = "任务总进度",
             style = MaterialTheme.typography.titleMedium,
@@ -314,7 +328,10 @@ private fun TaskOverallProgressCard(
 }
 
 @Composable
-private fun TranscriptionModelCard(state: TranscriptionUiState) {
+private fun TranscriptionModelCard(
+    state: TranscriptionUiState,
+    modifier: Modifier = Modifier,
+) {
     val runtimeDescription = when {
         !state.modelRequiresLocalCache -> "Qwen3-ASR · 云端直接转写"
         state.modelState == ModelInstallState.READY -> "本地运行 · 已缓存"
@@ -322,7 +339,7 @@ private fun TranscriptionModelCard(state: TranscriptionUiState) {
         state.modelState == ModelInstallState.VERIFYING -> "本地运行 · 正在校验"
         else -> "本地运行 · 待准备"
     }
-    WorkbenchCard {
+    WorkbenchCard(modifier = modifier.fillMaxWidth()) {
         Text(
             text = "转写模型",
             style = MaterialTheme.typography.titleMedium,
@@ -373,7 +390,11 @@ private fun HomeHeader(expanded: Boolean) {
 }
 
 @Composable
-private fun WorkflowOverview(state: TranscriptionUiState, tasks: List<TranscriptionTaskEntity>) {
+private fun WorkflowOverview(
+    state: TranscriptionUiState,
+    tasks: List<TranscriptionTaskEntity>,
+    modifier: Modifier = Modifier,
+) {
     val unfinished = tasks.filter { taskState(it) != TranscriptionTaskState.COMPLETED }
     val activeCount = unfinished.count {
         taskState(it) in setOf(
@@ -383,7 +404,7 @@ private fun WorkflowOverview(state: TranscriptionUiState, tasks: List<Transcript
         )
     }
     val waitingCount = unfinished.count { taskState(it) == TranscriptionTaskState.QUEUED }
-    WorkbenchCard {
+    WorkbenchCard(modifier = modifier.fillMaxWidth()) {
         Text(
             text = "运行状态",
             style = MaterialTheme.typography.titleMedium,

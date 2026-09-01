@@ -33,8 +33,8 @@ android {
         applicationId = "com.nanzhufeng.transcriber"
         minSdk = 29
         targetSdk = 35
-        versionCode = 16
-        versionName = "0.14.1"
+        versionCode = 17
+        versionName = "0.14.2"
         testApplicationId = "com.nanzhufeng.transcriber.codextest"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

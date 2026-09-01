@@ -7,16 +7,15 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenuItem
@@ -108,20 +107,25 @@ fun SettingsScreen(
         }
 
         if (expanded) {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
+            val moduleRows = listOf(
+                SettingsModule.APPEARANCE to SettingsModule.MODEL,
+                SettingsModule.MODEL_DETAILS to SettingsModule.TRANSCRIPTION,
+                SettingsModule.OUTPUT to SettingsModule.PRIVACY,
+            )
+            LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(
                     start = 16.dp,
                     end = 16.dp,
                     bottom = 14.dp,
                 ),
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                items(SettingsModule.entries) { module ->
-                    SettingsModuleCard(
-                        module = module,
+                items(moduleRows.size) { index ->
+                    val (leftModule, rightModule) = moduleRows[index]
+                    SettingsModuleGridRow(
+                        leftModule = leftModule,
+                        rightModule = rightModule,
                         state = state,
                         settings = settings,
                         onDownloadModel = onDownloadModel,
@@ -182,6 +186,82 @@ fun SettingsScreen(
 }
 
 @Composable
+private fun SettingsModuleGridRow(
+    leftModule: SettingsModule,
+    rightModule: SettingsModule,
+    state: TranscriptionUiState,
+    settings: TranscriptionSettings,
+    onDownloadModel: () -> Unit,
+    onImportModel: () -> Unit,
+    onExportModel: () -> Unit,
+    onVerifyModel: () -> Unit,
+    onDeleteModel: () -> Unit,
+    onModelChanged: (String) -> Unit,
+    onLanguageChanged: (String?) -> Unit,
+    onThreadCountChanged: (Int) -> Unit,
+    onChooseOutputDirectory: () -> Unit,
+    onClearOutputDirectory: () -> Unit,
+    onConflictPolicyChanged: (OutputConflictPolicy) -> Unit,
+    onSavePostProcessApiKey: (String) -> Unit,
+    onRevealPostProcessApiKey: () -> Unit,
+    onSkinChanged: (String) -> Unit,
+    invocationRecords: List<AsrInvocationRecord>,
+    onOpenInvocationHistory: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(IntrinsicSize.Max),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        SettingsModuleCard(
+            module = leftModule,
+            state = state,
+            settings = settings,
+            onDownloadModel = onDownloadModel,
+            onImportModel = onImportModel,
+            onExportModel = onExportModel,
+            onVerifyModel = onVerifyModel,
+            onDeleteModel = onDeleteModel,
+            onModelChanged = onModelChanged,
+            onLanguageChanged = onLanguageChanged,
+            onThreadCountChanged = onThreadCountChanged,
+            onChooseOutputDirectory = onChooseOutputDirectory,
+            onClearOutputDirectory = onClearOutputDirectory,
+            onConflictPolicyChanged = onConflictPolicyChanged,
+            onSavePostProcessApiKey = onSavePostProcessApiKey,
+            onRevealPostProcessApiKey = onRevealPostProcessApiKey,
+            onSkinChanged = onSkinChanged,
+            invocationRecords = invocationRecords,
+            onOpenInvocationHistory = onOpenInvocationHistory,
+            modifier = Modifier.weight(1f).fillMaxHeight(),
+        )
+        SettingsModuleCard(
+            module = rightModule,
+            state = state,
+            settings = settings,
+            onDownloadModel = onDownloadModel,
+            onImportModel = onImportModel,
+            onExportModel = onExportModel,
+            onVerifyModel = onVerifyModel,
+            onDeleteModel = onDeleteModel,
+            onModelChanged = onModelChanged,
+            onLanguageChanged = onLanguageChanged,
+            onThreadCountChanged = onThreadCountChanged,
+            onChooseOutputDirectory = onChooseOutputDirectory,
+            onClearOutputDirectory = onClearOutputDirectory,
+            onConflictPolicyChanged = onConflictPolicyChanged,
+            onSavePostProcessApiKey = onSavePostProcessApiKey,
+            onRevealPostProcessApiKey = onRevealPostProcessApiKey,
+            onSkinChanged = onSkinChanged,
+            invocationRecords = invocationRecords,
+            onOpenInvocationHistory = onOpenInvocationHistory,
+            modifier = Modifier.weight(1f).fillMaxHeight(),
+        )
+    }
+}
+
+@Composable
 private fun SettingsModuleCard(
     module: SettingsModule,
     state: TranscriptionUiState,
@@ -202,14 +282,19 @@ private fun SettingsModuleCard(
     onSkinChanged: (String) -> Unit,
     invocationRecords: List<AsrInvocationRecord>,
     onOpenInvocationHistory: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     when (module) {
         SettingsModule.MODEL -> ModelSelectionCard(
             selectedModelId = settings.modelId,
             isBusy = state.isBusy,
             onModelChanged = onModelChanged,
+            modifier = modifier,
         )
-        SettingsModule.MODEL_DETAILS -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        SettingsModule.MODEL_DETAILS -> Column(
+            modifier = modifier,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
             ModelDetailsCard(
                 state = state,
                 settings = settings,
@@ -221,6 +306,7 @@ private fun SettingsModuleCard(
                 onDeleteModel = onDeleteModel,
                 onSaveApiKey = onSavePostProcessApiKey,
                 onRevealApiKey = onRevealPostProcessApiKey,
+                modifier = Modifier.fillMaxWidth(),
             )
             if (OfficialModelCatalog.find(settings.modelId)?.requiresLocalCache == false) {
                 AsrInvocationLedgerEntry(
@@ -233,15 +319,17 @@ private fun SettingsModuleCard(
             settings = settings,
             onLanguageChanged = onLanguageChanged,
             onThreadCountChanged = onThreadCountChanged,
+            modifier = modifier,
         )
         SettingsModule.OUTPUT -> OutputSettingsCard(
             settings = settings,
             onChooseOutputDirectory = onChooseOutputDirectory,
             onClearOutputDirectory = onClearOutputDirectory,
             onConflictPolicyChanged = onConflictPolicyChanged,
+            modifier = modifier,
         )
-        SettingsModule.APPEARANCE -> AppearanceCard(settings, onSkinChanged)
-        SettingsModule.PRIVACY -> PrivacyCard(state, settings)
+        SettingsModule.APPEARANCE -> AppearanceCard(settings, onSkinChanged, modifier)
+        SettingsModule.PRIVACY -> PrivacyCard(state, settings, modifier)
     }
 }
 
@@ -251,6 +339,7 @@ private fun HighAccuracyServiceCard(
     state: TranscriptionUiState,
     onSaveApiKey: (String) -> Unit,
     onRevealApiKey: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     // 与南枫 AI 一致：已保存凭据先显示固定长度掩码；只有点眼睛才解密回填。
     val savedKeyMask = "••••••••••••••••••••••••••••••••"
@@ -265,7 +354,7 @@ private fun HighAccuracyServiceCard(
             apiKeyVisible = true
         }
     }
-    WorkbenchCard(modifier = Modifier.fillMaxWidth()) {
+    WorkbenchCard(modifier = modifier.fillMaxWidth()) {
         Spacer(Modifier.height(2.dp))
         SettingValueRow("转写模型", "Qwen3-ASR")
         OutlinedTextField(
@@ -317,8 +406,9 @@ private fun ModelSelectionCard(
     selectedModelId: String,
     isBusy: Boolean,
     onModelChanged: (String) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    WorkbenchCard(modifier = Modifier.fillMaxWidth()) {
+    WorkbenchCard(modifier = modifier.fillMaxWidth()) {
         SectionHeading(title = "转写模型")
         Spacer(Modifier.height(10.dp))
         OfficialModelCatalog.modelSelectionCandidates.forEach { model ->
@@ -344,6 +434,7 @@ private fun ModelDetailsCard(
     onDeleteModel: () -> Unit,
     onSaveApiKey: (String) -> Unit,
     onRevealApiKey: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val selectedModel = OfficialModelCatalog.find(selectedModelId) ?: return
     if (selectedModel.requiresLocalCache) {
@@ -354,6 +445,7 @@ private fun ModelDetailsCard(
             onExportModel = onExportModel,
             onVerifyModel = onVerifyModel,
             onDeleteModel = onDeleteModel,
+            modifier = modifier,
         )
     } else {
         HighAccuracyServiceCard(
@@ -361,6 +453,7 @@ private fun ModelDetailsCard(
             state = state,
             onSaveApiKey = onSaveApiKey,
             onRevealApiKey = onRevealApiKey,
+            modifier = modifier,
         )
     }
 }
@@ -371,8 +464,9 @@ private fun OutputSettingsCard(
     onChooseOutputDirectory: () -> Unit,
     onClearOutputDirectory: () -> Unit,
     onConflictPolicyChanged: (OutputConflictPolicy) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    WorkbenchCard(modifier = Modifier.fillMaxWidth()) {
+    WorkbenchCard(modifier = modifier.fillMaxWidth()) {
         SectionHeading(
             title = "输出与文件",
             color = ParameterPurple,
@@ -411,6 +505,7 @@ private fun ModelCacheCard(
     onExportModel: () -> Unit,
     onVerifyModel: () -> Unit,
     onDeleteModel: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     var showDeleteConfirmation by remember { mutableStateOf(false) }
     if (showDeleteConfirmation) {
@@ -433,7 +528,7 @@ private fun ModelCacheCard(
             },
         )
     }
-    WorkbenchCard(modifier = Modifier.fillMaxWidth()) {
+    WorkbenchCard(modifier = modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -546,8 +641,9 @@ private fun TranscriptionSettingsCard(
     settings: TranscriptionSettings,
     onLanguageChanged: (String?) -> Unit,
     onThreadCountChanged: (Int) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    WorkbenchCard(modifier = Modifier.fillMaxWidth()) {
+    WorkbenchCard(modifier = modifier.fillMaxWidth()) {
         SectionHeading(
             title = "转写参数",
             color = ParameterPurple,
@@ -632,8 +728,9 @@ private fun SelectionField(
 private fun AppearanceCard(
     settings: TranscriptionSettings,
     onSkinChanged: (String) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    WorkbenchCard(modifier = Modifier.fillMaxWidth()) {
+    WorkbenchCard(modifier = modifier.fillMaxWidth()) {
         SectionHeading(
             title = "皮肤",
             color = AttentionOchre,
@@ -650,8 +747,12 @@ private fun AppearanceCard(
 }
 
 @Composable
-private fun PrivacyCard(state: TranscriptionUiState, settings: TranscriptionSettings) {
-    WorkbenchCard(modifier = Modifier.fillMaxWidth()) {
+private fun PrivacyCard(
+    state: TranscriptionUiState,
+    settings: TranscriptionSettings,
+    modifier: Modifier = Modifier,
+) {
+    WorkbenchCard(modifier = modifier.fillMaxWidth()) {
         SectionHeading(
             title = "隐私与诊断",
         )
