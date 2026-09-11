@@ -474,7 +474,7 @@ private fun OutputSettingsCard(
         Spacer(Modifier.height(10.dp))
         SettingValueRow(
             "默认目录",
-            settings.defaultOutputDirectoryUri?.let(::outputDirectoryLabel) ?: "未设置（仅保留历史）",
+            settings.defaultOutputDirectoryUri?.let(::outputDirectoryLabel) ?: "未设置（导出前请先设置）",
         )
         Button(
             onClick = onChooseOutputDirectory,
@@ -492,7 +492,7 @@ private fun OutputSettingsCard(
             TextButton(
                 onClick = onClearOutputDirectory,
                 modifier = Modifier.align(Alignment.End),
-            ) { Text("关闭自动导出") }
+            ) { Text("清除默认输出目录") }
         }
     }
 }
@@ -593,7 +593,7 @@ private fun ModelCacheCard(
                 enabled = !state.isBusy && state.modelState == ModelInstallState.READY,
                 modifier = Modifier.weight(1f),
             ) { Text("导出备份") }
-            TextButton(
+            SubtleActionButton(
                 onClick = { showDeleteConfirmation = true },
                 enabled = !state.isBusy && state.modelCacheBytes > 0L,
                 modifier = Modifier.weight(1f),

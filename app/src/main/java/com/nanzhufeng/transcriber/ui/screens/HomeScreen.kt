@@ -38,6 +38,7 @@ import androidx.compose.material.icons.filled.StopCircle
 import androidx.compose.material.icons.outlined.AudioFile
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.FolderOpen
+import androidx.compose.material.icons.outlined.MusicVideo
 import androidx.compose.material.icons.outlined.Replay
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.AlertDialog
@@ -1034,7 +1035,7 @@ private fun ActionDock(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
-                    Icons.Outlined.FolderOpen,
+                    Icons.Outlined.MusicVideo,
                     contentDescription = null,
                     tint = if (dragActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 )

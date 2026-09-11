@@ -1,10 +1,6 @@
 # 项目执行约束
 
-## 通用协作协议
-
-`~/.codex/docs/codex-workflow/AI_Collaboration_Framework.md` 只规定协作方法，不替代安全边界、当前指令、本项目 Bible/设计基线/领域规则/验收矩阵或本文件。优先级：安全与当前指令 → 项目内锁定规则 → 本文件 → 协议 → 动态记录。重要决策写 `docs/decision-log.md`，动态进度写 `docs/CURRENT_HANDOFF.md`。
-
-- 默认中文协作；所有用户可见提示和诊断均使用中文。
+- 所有用户可见提示和诊断均使用中文。
 - 这是独立 Android 项目，不引入 Python、PySide6 或 Chaquopy。
 - 功能真相以 Windows 正式版行为、`docs/domain-rules.md` 和真实设备证据为准。
 - 推理引擎通过 OPPO Find N5 性能门禁前，不先实现完整六皮肤界面。

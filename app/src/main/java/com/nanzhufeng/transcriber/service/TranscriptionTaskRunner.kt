@@ -13,14 +13,11 @@ import com.nanzhufeng.transcriber.data.media.MediaCodecAudioDecoder
 import com.nanzhufeng.transcriber.data.media.PcmAudioArtifact
 import com.nanzhufeng.transcriber.data.modelstore.OfficialModelCatalog
 import com.nanzhufeng.transcriber.data.modelstore.AsrProviderId
-import com.nanzhufeng.transcriber.data.output.AndroidTranscriptOutputStore
 import com.nanzhufeng.transcriber.data.result.StoredTranscript
 import com.nanzhufeng.transcriber.data.result.StoredTranscriptionCheckpoint
 import com.nanzhufeng.transcriber.data.result.TranscriptionCheckpointStore
 import com.nanzhufeng.transcriber.data.result.TranscriptDocumentStore
 import com.nanzhufeng.transcriber.data.task.SourceAccessMode
-import com.nanzhufeng.transcriber.data.task.OutputConflictPolicy
-import com.nanzhufeng.transcriber.data.task.TranscriptionOutputFormat
 import com.nanzhufeng.transcriber.data.task.TaskMutationResult
 import com.nanzhufeng.transcriber.data.task.TranscriptionTaskEntity
 import com.nanzhufeng.transcriber.domain.export.TranscriptDocument
@@ -62,7 +59,6 @@ class TranscriptionTaskRunner(
     private val queueModelSession = QueueModelSessionOwner { provider, threadCount ->
         SpeechEngineFactory.create(provider, threadCount, container.qwen3AsrEngine)
     }
-    private val automaticOutputStore = AndroidTranscriptOutputStore(context.contentResolver, exportService)
     private val historyMediaPreviewStore = HistoryMediaPreviewStore(context)
     private val embeddedSubtitleExtractor = EmbeddedSubtitleExtractor(context)
     @Volatile private var activeTaskId: String? = null
@@ -619,23 +615,6 @@ class TranscriptionTaskRunner(
             Files.newOutputStream(plainTextPath).use { output ->
                 exportService.export(document, TranscriptExportFormat.TXT, output)
             }
-            val automaticExportMessage = queued.exportDirectoryUri?.let { directoryUri ->
-                runCatching {
-                    val outputFormat = TranscriptionOutputFormat.valueOf(queued.outputFormat).toExportFormat()
-                    val conflictPolicy = runCatching {
-                        OutputConflictPolicy.valueOf(queued.outputConflictPolicy)
-                    }.getOrDefault(OutputConflictPolicy.RENAME)
-                    automaticOutputStore.export(
-                        treeUri = Uri.parse(directoryUri),
-                        sourceDisplayName = queued.sourceDisplayName,
-                        document = document,
-                        format = outputFormat,
-                        conflictPolicy = conflictPolicy,
-                    ).message
-                }.getOrElse {
-                    "默认目录导出失败，可在历史页重新导出"
-                }
-            }
             requireUpdated(
                 container.tasks.transition(
                     id = queued.id,
@@ -649,20 +628,12 @@ class TranscriptionTaskRunner(
                         } else {
                             "转写完成，完整结果已保存"
                         },
-                        automaticExportMessage,
                     ).joinToString("；"),
                     technicalDetail = performanceSummary,
                 ),
             )
         }
         return documentPath
-    }
-
-    private fun TranscriptionOutputFormat.toExportFormat(): TranscriptExportFormat = when (this) {
-        TranscriptionOutputFormat.TXT -> TranscriptExportFormat.TXT
-        TranscriptionOutputFormat.MARKDOWN -> TranscriptExportFormat.MARKDOWN
-        TranscriptionOutputFormat.SRT -> TranscriptExportFormat.SRT
-        TranscriptionOutputFormat.DOCX -> TranscriptExportFormat.DOCX
     }
 
     private fun StoredTranscriptionCheckpoint.toArtifact(pcmPath: Path): PcmAudioArtifact =

@@ -19,6 +19,7 @@ import com.nanzhufeng.transcriber.MainActivity
 import com.nanzhufeng.transcriber.NanfengTranscriberApplication
 import com.nanzhufeng.transcriber.R
 import com.nanzhufeng.transcriber.data.task.TaskMutationResult
+import com.nanzhufeng.transcriber.domain.task.TaskNotificationPresentationPolicy
 import com.nanzhufeng.transcriber.domain.task.TaskTransitionPolicy
 import com.nanzhufeng.transcriber.domain.task.TranscriptionTaskState
 import kotlinx.coroutines.CancellationException
@@ -257,8 +258,9 @@ class TranscriptionForegroundService : Service() {
             )
             builder.addAction(0, "取消转写", cancelPendingIntent)
         }
-        if (percentage != null) {
-            builder.setProgress(100, percentage.coerceIn(0, 100), false)
+        val visiblePercentage = TaskNotificationPresentationPolicy.progressFor(ongoing, percentage)
+        if (visiblePercentage != null) {
+            builder.setProgress(100, visiblePercentage, false)
         } else if (ongoing) {
             builder.setProgress(0, 0, true)
         }

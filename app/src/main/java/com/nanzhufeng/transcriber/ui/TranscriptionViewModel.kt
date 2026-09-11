@@ -61,7 +61,7 @@ class TranscriptionViewModel(application: Application) : AndroidViewModel(applic
     private val resolver = application.contentResolver
     private var selectedModel = requireNotNull(OfficialModelCatalog.find("sensevoice-small-int8"))
     private val exportService = TranscriptExportService()
-    private val automaticOutputStore = AndroidTranscriptOutputStore(resolver, exportService)
+    private val outputStore = AndroidTranscriptOutputStore(resolver, exportService)
     private val documentStore = TranscriptDocumentStore()
 
     private val _uiState = MutableStateFlow(
@@ -563,7 +563,8 @@ class TranscriptionViewModel(application: Application) : AndroidViewModel(applic
                                 language = source.language,
                                 threadCount = source.threadCount,
                                 outputFormat = source.outputFormat,
-                                exportDirectoryUri = taskSettings.defaultOutputDirectoryUri,
+                                // 任务完成不保存输出目录，也不会自动写入文件；导出仅由结果页的明确操作触发。
+                                exportDirectoryUri = null,
                                 outputConflictPolicy = taskSettings.outputConflictPolicy,
                                 postProcessEnabled = false,
                                 postProcessBaseUrl = taskSettings.postProcessBaseUrl,
@@ -892,7 +893,7 @@ class TranscriptionViewModel(application: Application) : AndroidViewModel(applic
             }
             val result = runCatching {
                 withContext(Dispatchers.IO) {
-                    automaticOutputStore.export(
+                    outputStore.export(
                         treeUri = Uri.parse(outputDirectory),
                         sourceDisplayName = task.sourceDisplayName,
                         document = exportDocument,
@@ -964,14 +965,14 @@ class TranscriptionViewModel(application: Application) : AndroidViewModel(applic
                 return@launch
             }
             container.settings.setDefaultOutputDirectoryUri(uri.toString())
-            _uiState.update { it.copy(statusMessage = "已设置默认输出目录，新任务完成后将自动导出") }
+            _uiState.update { it.copy(statusMessage = "已设置默认输出目录，可在结果页手动导出") }
         }
     }
 
     fun clearDefaultOutputDirectory() {
         viewModelScope.launch {
             container.settings.setDefaultOutputDirectoryUri(null)
-            _uiState.update { it.copy(statusMessage = "已关闭自动导出，转写结果仍会保留在历史页") }
+            _uiState.update { it.copy(statusMessage = "已清除默认输出目录，转写结果仍会保留在历史页") }
         }
     }
 
