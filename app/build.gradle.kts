@@ -1,3 +1,7 @@
+import java.time.ZoneId
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -23,6 +27,8 @@ val releaseKeystoreFile = file(releaseKeystorePath)
 val releaseSigningReady = releaseKeystoreFile.isFile &&
     !releaseStorePassword.isNullOrBlank() &&
     !releaseKeyPassword.isNullOrBlank()
+val buildTimestamp = ZonedDateTime.now(ZoneId.of("Asia/Shanghai"))
+    .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
 
 android {
     namespace = "com.nanzhufeng.transcriber"
@@ -33,8 +39,9 @@ android {
         applicationId = "com.nanzhufeng.transcriber"
         minSdk = 29
         targetSdk = 35
-        versionCode = 18
-        versionName = "0.14.3"
+        versionCode = 19
+        versionName = "0.14.4"
+        buildConfigField("String", "BUILD_TIME", "\"$buildTimestamp\"")
         testApplicationId = "com.nanzhufeng.transcriber.codextest"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

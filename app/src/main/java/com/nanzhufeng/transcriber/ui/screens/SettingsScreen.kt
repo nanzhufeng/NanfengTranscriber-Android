@@ -22,6 +22,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -46,6 +47,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.nanzhufeng.transcriber.BuildConfig
 import com.nanzhufeng.transcriber.data.modelstore.OfficialModelCatalog
@@ -146,6 +148,9 @@ fun SettingsScreen(
                         onOpenInvocationHistory = { showingInvocationHistory = true },
                     )
                 }
+                item {
+                    AboutSection()
+                }
             }
         } else {
             LazyColumn(
@@ -179,6 +184,9 @@ fun SettingsScreen(
                         invocationRecords = invocationRecords,
                         onOpenInvocationHistory = { showingInvocationHistory = true },
                     )
+                }
+                item {
+                    AboutSection()
                 }
             }
         }
@@ -776,6 +784,74 @@ private fun PrivacyCard(
         SettingValueRow("App 版本", BuildConfig.VERSION_NAME)
         SettingValueRow("本机引擎", state.nativeStatus)
     }
+}
+
+@Composable
+private fun AboutSection(
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        Text(
+            text = "关于",
+            modifier = Modifier.fillMaxWidth(),
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(10.dp))
+        WorkbenchCard(
+            modifier = Modifier.fillMaxWidth(),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "南枫转写 Android",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = "本地优先的音频、视频转写与明确导出。",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.56f))
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "版本信息",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                )
+                Spacer(Modifier.height(4.dp))
+                AboutInfoLine("Android 版本", BuildConfig.VERSION_NAME)
+                AboutInfoLine("构建时间", BuildConfig.BUILD_TIME)
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.56f))
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "开发者信息",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                )
+                Spacer(Modifier.height(4.dp))
+                AboutInfoLine("开发者", "席瑞")
+                AboutInfoLine("联系邮箱", "nanzhufeng.studio@gmail.com")
+                AboutInfoLine("源代码与更新", "GitHub · nanzhufeng/NanfengTranscriber-Android")
+                AboutInfoLine("版权所有", "© 2026 席瑞")
+            }
+        }
+    }
+}
+
+@Composable
+private fun AboutInfoLine(label: String, value: String) {
+    Text(
+        text = "$label：$value",
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurface,
+        modifier = Modifier.padding(vertical = 2.dp),
+    )
 }
 
 @Composable
