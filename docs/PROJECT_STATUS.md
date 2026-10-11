@@ -4,10 +4,10 @@
 
 ## Verified
 
-- Last verified: 2026-10-11 12:54 +08:00
+- Last verified: 2026-10-11 13:43 +08:00
 - Verified branch: main
-- Code baseline: b02799b5df953504716fa9b879d484dc3799bfde
-- Verification scope: WORKTREE；本次发布的 app/build.gradle.kts、app/src/main、app/src/test 及配套文档；可重建快照随发布提交保存。见 [v0.14.8 验证记录](releases/v0.14.8-verification.md)。
+- Code baseline: 290e03f93fe6e9df43c243d3a04d2839ba9720be
+- Verification scope: COMMIT；单测与 UI 所验证的工作区已完整提交为该代码基线，后续仅更新发布文档；v0.14.8 标签指向该基线。见 [v0.14.8 验证记录](releases/v0.14.8-verification.md)。
 - Verified by: Codex
 - Status: Active
 
@@ -16,10 +16,11 @@
 - 0.14.8 (23) 正式签名 APK：本地 SenseVoice、云端文件转写预设与 Paraformer 低成本模式、队列/历史/明确导出；云端接入通过接口测试，真实账号服务未验收。
 - 后台独立服务、已有片段断点、真实进度通知与点击展开的简洁灵动岛；设置仅保留授权状态和三个权限入口。
 - 主设备已按明确授权同签名保数据覆盖至 0.14.8，回读包哈希与本地产物一致；不是主设备转写或 OEM 原生岛验收。
+- [v0.14.8 正式 Release](https://github.com/nanzhufeng/NanfengTranscriber-Android/releases/tag/v0.14.8) 已公开，APK 与 SHA256SUMS.txt 均上传成功；GitHub 计算的 APK digest 与冻结包一致。
 
 ## In Progress
 
-- 将当前代码推送 main，并发布 v0.14.8 正式 Release 的 APK 与校验附件。
+- 无；本次正式发布已完成。
 
 ## Blocked
 
@@ -45,15 +46,14 @@
 
 ## Sync & Safety
 
-- Sync checked at: 2026-10-11 12:54 +08:00；写入本状态前。
+- Sync checked at: 2026-10-11 13:43 +08:00；本次发布收尾文档写入前。
 - Code / docs sync: OK；当前源码与 README / 发布验证范围对应，历史 QA 保留版本标签。
-- Git working tree: DIRTY；当前发布改动待提交，另保留无关的 design-qa.md，不纳入发布。
-- Remote sync: LOCAL ONLY；origin/main 与底层基线一致，当前发布改动尚未推送。
+- Git working tree: DIRTY；仅保留无关的 design-qa.md，不纳入发布；当前收尾摘要作为随后文档提交另行推送。
+- Remote sync: PUSHED；上述代码基线已在 origin/main，公开 v0.14.8 标签也指向同一基线。本字段为写入收尾文档前的同步快照，不要求状态文件与自身提交 SHA 相等。
 - Rollback point: UNKNOWN；旧发布可查 v0.14.4，但本次未复验该旧版本业务稳定性。
-- Secrets/config risk: REVIEW NEEDED；发布暂存区将检查密钥/签名文件与个人路径；本机签名凭据、安装备份、设备序列号不公开。
+- Secrets/config risk: NONE（本次变更的暂存区范围）；未发现实际密钥、签名文件、APK 或个人绝对路径。本机签名凭据、安装备份、设备序列号不公开；没有对历史仓库作全量审计。
 
 ## Next
 
-1. 完成本次正式 Release 与附件远端回读。
-2. 仅在用户明确授权后验证真实云端转写与费用。
-3. 后续由用户真实文件验证主设备后台与识别质量。
+1. 仅在用户明确授权后验证真实云端转写与费用。
+2. 后续由用户真实文件验证主设备后台与识别质量。

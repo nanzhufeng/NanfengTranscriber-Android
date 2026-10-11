@@ -6,9 +6,10 @@
 
 - 用户授权打包上传 GitHub；项目整体状态与验证缺口由 [PROJECT_STATUS.md](PROJECT_STATUS.md) 维护。
 - 当前冻结包 0.14.8 (23)，已包含设置“隐私与诊断”移除、灵动岛改名及四段说明删除。APK hash 与签名、验证范围见 [发布验证](releases/v0.14.8-verification.md)。不要再次打包改变已安装、待发布产物。
-- 当前 main 与 origin/main 基线一致；所有此前同项目功能改动纳入发布，保留无关 design-qa.md，不提交个人临时文件、安装备份或签名凭据。
+- 发布代码基线 `290e03f93fe6e9df43c243d3a04d2839ba9720be` 已推送 origin/main，v0.14.8 标签指向同一基线；所有此前同项目功能改动纳入发布，保留无关 design-qa.md，不提交个人临时文件、安装备份或签名凭据。
 - 2026-10-10 用户已授权将主设备保数据覆盖到 0.14.8，回读 hash 与冻结包一致，首装时间和数据目录标识未变；这仍不是主设备业务验收。本次发布不自动启动或修改主设备。
-- 当前待办：提交/推送源码、创建 v0.14.8 Release、上传 APK 与校验文件，并回读 GitHub 附件和标签。
+- [v0.14.8 正式 Release](https://github.com/nanzhufeng/NanfengTranscriber-Android/releases/tag/v0.14.8) 已公开（非草稿、非预发布），APK 106866933 字节与 SHA256SUMS.txt 已上传；GitHub 的 APK digest 与冻结包一致。README 已换成当前版本真实模拟器预览。上传初次连接过慢，中止本轮上传进程后使用单独 HTTP/1.1 请求成功；未修改全局网络配置。
+- 本轮任务已闭环；下一步只按用户的新请求行动，不自动调用收费服务、操作主设备或扩大功能范围。
 
 以下为各增量的历史执行记录，不覆盖上述当前版本和 PROJECT_STATUS 的状态。
 
