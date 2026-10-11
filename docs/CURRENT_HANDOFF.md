@@ -2,6 +2,14 @@
 
 更新日期：2026-10-11
 
+## 最新任务：本地 checkpoint、最终回归与增量正式沉淀
+
+- 开始 HEAD：5152a3d73626c561124c2fb6aa4546fc5d6497d5；本地代码点 checkpoint-v0.14.8-20261011-code，生产代码与发布标签相同。
+- 核心新增文件已经纳入 Git，当前只补陈旧合同、项目 context/经验审计/可迁移模板和机器检查；已完成的源码接入、覆盖、预览和发布不重复执行。
+- 本轮 JVM 91 项与 lintDebug 通过；旧合同快照预期触发 10 项漂移，新合同 56 项通过；经验结构/15 个链接/秘密模式检查通过。[增量档案](development-experience/README.md) 和 [回归记录](qa/final-regression-v0148/README.md) 保存详细证据。
+- 本轮只建立本地提交和 checkpoint-v0.14.8-20261011-final；不推送、不重建/重签、不安装、不调用收费服务。冻结包未变，全球 Skill 与长期记忆未修改。
+- design-qa.md 依赖临时图片，原样保留，不作为当前基准；当前状态和缺口以 [PROJECT_STATUS.md](PROJECT_STATUS.md) 为准。下一步仅按新的明确请求行动。
+
 ## 当前任务：v0.14.8 GitHub 正式发布
 
 - 用户授权打包上传 GitHub；项目整体状态与验证缺口由 [PROJECT_STATUS.md](PROJECT_STATUS.md) 维护。

@@ -18,11 +18,11 @@
 
 ## 转写任务
 
-`QUEUED -> PREPARING -> SUBTITLE_PROBE -> TRANSCRIBING -> EXPORTING -> COMPLETED`
+`QUEUED -> PREPARING -> TRANSCRIBING -> EXPORTING -> COMPLETED`
 
-任务可暂停在等待输入/模型，失败进入 `FAILED`，用户停止进入 `CANCELLED`。转写完成但没有可读文字时进入 `NO_SPEECH`，继续留在主页并允许重试，绝不能伪装成已完成历史。应用进程死亡后，运行态任务恢复为可诊断的等待恢复状态，不能伪装为完成。
+输入/模型不足进入 `WAITING_INPUT` / `WAITING_MODEL`，失败进入 `FAILED`，用户停止进入 `CANCELLED`；不是可任意暂停的执行模式。无可读文字进入 `NO_SPEECH`，留在主页允许重试。进程中断后进入 `RECOVERY_REQUIRED`，不伪装为完成。持久状态以 `TranscriptionTaskState` 为准。
 
-- `SUBTITLE_PROBE` 不依赖本地语音模型；有可读内嵌文字轨时直接产生分段和时间轴。
+- 字幕探测是 `PREPARING` 内部阶段，不是独立 Room 状态；不依赖本地语音模型，有可读文字轨时直接产生分段和时间轴。
 - 只有无字幕、字幕不可读或字幕为画面像素时才进入语音模型检查。模型未安装必须转为可恢复的等待模型，不得在 UI 入口预先丢弃这条任务。
 
 ## 队列和会话
@@ -31,6 +31,15 @@
 - 相邻任务使用同一模型且线程配置相同时复用同一个队列级内存会话；切换模型或线程时才释放并重建。
 - 如提供“按模型优化队列”，必须由用户显式开启并展示排序影响。
 - 停止当前任务后不自动开始下一项，保持 Windows 版行为。
+
+## 后台执行与呈现
+
+- Room v7 是跨进程任务真相；`TranscriptionForegroundService` 在独立进程执行，`BackgroundTranscriptionQueue` 的 finally 统一释放资源。
+- 只对已完成并提交的音频片段计算转写进度；字幕、解码、加载、转写、保存是不同阶段。比例达到结尾也不在私有结果和完成状态提交前显示 100%。
+- 通知与悬浮窗共用 `NanfengIslandState`；用户取消后晚到进度不得覆盖取消状态，展示失败不应中断 ASR。
+- SenseVoice 当前推荐分块为 30 秒，断点在片段提交后保存；不能沿用旧版固定 5 分钟的描述或承诺恢复所有尚未提交的计算。
+- partial wake lock 使用有界租约并在执行期间续期；系统强制停止、关机、OEM 管控或前台服务时限仍可能中断，重开后的已保存断点恢复不等于永不被杀。
+- 系统进程 importance 包含前台服务与绑定影响，不能直接把高重要性推导成可见 Activity；悬浮窗不能影响主流程，未授权回退通知。
 
 ## 输出
 
