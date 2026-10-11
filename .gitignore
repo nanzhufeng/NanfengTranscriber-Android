@@ -8,3 +8,5 @@ local.properties
 captures/
 *.jks
 *.keystore
+.DS_Store
+docs/qa/**/oppo-install*.md

@@ -6,6 +6,10 @@ import org.junit.Test
 
 class TaskNotificationPresentationPolicyTest {
     @Test
+    fun progressCannotDeclareCompletionBeforeTheResultIsSaved() {
+        assertEquals(99, TaskNotificationPresentationPolicy.progressFor(ongoing = true, percentage = 100))
+    }
+    @Test
     fun onlyOngoingTasksExposeProgress() {
         assertEquals(56, TaskNotificationPresentationPolicy.progressFor(ongoing = true, percentage = 56))
         assertNull(TaskNotificationPresentationPolicy.progressFor(ongoing = false, percentage = 100))

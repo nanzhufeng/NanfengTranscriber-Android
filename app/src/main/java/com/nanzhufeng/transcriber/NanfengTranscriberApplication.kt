@@ -17,6 +17,10 @@ import com.nanzhufeng.transcriber.data.task.MIGRATION_6_7
 import com.nanzhufeng.transcriber.data.settings.TranscriptionSettingsRepository
 import com.nanzhufeng.transcriber.data.settings.SecureApiCredentialStore
 import com.nanzhufeng.transcriber.engine.Qwen3AsrApiEngine
+import com.nanzhufeng.transcriber.engine.DashScopeFileTranscriptionEngine
+import com.nanzhufeng.transcriber.engine.DashScopeFileTranscriptionClient
+import com.nanzhufeng.transcriber.engine.FileTranscriptionModel
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
@@ -36,6 +40,9 @@ class NanfengTranscriberApplication : Application() {
             httpClient = httpClient,
         )
         val textApiCredentials = SecureApiCredentialStore(applicationContext)
+        val fileClient = DashScopeFileTranscriptionClient(
+            textApiCredentials::readApiKey, httpClient, "https://dashscope.aliyuncs.com/api/v1/".toHttpUrl(),
+        )
         val taskDatabase = Room.databaseBuilder(
             applicationContext,
             TranscriptionDatabase::class.java,
@@ -61,6 +68,12 @@ class NanfengTranscriberApplication : Application() {
                 readApiKey = textApiCredentials::readApiKey,
                 client = httpClient,
             ),
+            qwenFileEngine = DashScopeFileTranscriptionEngine(
+                FileTranscriptionModel.QWEN_AUDIO_31, fileClient, textApiCredentials::readApiKey,
+            ),
+            paraformerEngine = DashScopeFileTranscriptionEngine(
+                FileTranscriptionModel.PARAFORMER_V2, fileClient, textApiCredentials::readApiKey,
+            ),
         )
     }
 }
@@ -75,4 +88,6 @@ data class AppContainer(
     val textApiCredentials: SecureApiCredentialStore,
     val asrInvocations: RoomAsrInvocationRepository,
     val qwen3AsrEngine: Qwen3AsrApiEngine,
+    val qwenFileEngine: DashScopeFileTranscriptionEngine,
+    val paraformerEngine: DashScopeFileTranscriptionEngine,
 )

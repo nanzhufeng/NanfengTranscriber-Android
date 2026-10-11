@@ -86,7 +86,6 @@ import com.nanzhufeng.transcriber.domain.task.TaskSelectionPolicy
 import com.nanzhufeng.transcriber.ui.PendingSourceUi
 import com.nanzhufeng.transcriber.ui.TranscriptionUiState
 import com.nanzhufeng.transcriber.ui.components.SectionHeading
-import com.nanzhufeng.transcriber.ui.components.SubtleActionButton
 import com.nanzhufeng.transcriber.ui.components.TaskMediaPreview
 import com.nanzhufeng.transcriber.ui.components.WorkbenchCard
 import com.nanzhufeng.transcriber.ui.components.formatBytes
@@ -103,7 +102,6 @@ fun HomeScreen(
     tasks: List<TranscriptionTaskEntity>,
     expanded: Boolean,
     onChooseSource: () -> Unit,
-    onChooseFolder: () -> Unit,
     onDropSources: (List<Uri>) -> Unit,
     onStart: () -> Unit,
     onTogglePendingSource: (String) -> Unit,
@@ -175,7 +173,6 @@ fun HomeScreen(
                         ActionDock(
                             state = state,
                             onChooseSource = onChooseSource,
-                            onChooseFolder = onChooseFolder,
                             onDropSources = onDropSources,
                             onOpenSettings = onOpenSettings,
                         )
@@ -206,7 +203,6 @@ fun HomeScreen(
             ActionDock(
                 state = state,
                 onChooseSource = onChooseSource,
-                onChooseFolder = onChooseFolder,
                 onDropSources = onDropSources,
                 onOpenSettings = onOpenSettings,
             )
@@ -334,7 +330,7 @@ private fun TranscriptionModelCard(
     modifier: Modifier = Modifier,
 ) {
     val runtimeDescription = when {
-        !state.modelRequiresLocalCache -> "Qwen3-ASR · 云端直接转写"
+        !state.modelRequiresLocalCache -> "${state.modelDisplayName} · 云端直接转写"
         state.modelState == ModelInstallState.READY -> "本地运行 · 已缓存"
         state.modelState == ModelInstallState.DOWNLOADING -> "本地运行 · 正在下载"
         state.modelState == ModelInstallState.VERIFYING -> "本地运行 · 正在校验"
@@ -366,7 +362,7 @@ private fun TranscriptionModelCard(
 private fun HomeHeader(expanded: Boolean) {
     if (expanded) {
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text("主页", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+            Text("首页", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
             Text(
                 "批量加入音视频，任务可在后台顺序转写",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -969,7 +965,6 @@ private fun EmptyWorkspace(hasHistory: Boolean) {
 private fun ActionDock(
     state: TranscriptionUiState,
     onChooseSource: () -> Unit,
-    onChooseFolder: () -> Unit,
     onDropSources: (List<Uri>) -> Unit,
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
@@ -1047,23 +1042,6 @@ private fun ActionDock(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-        }
-        SubtleActionButton(
-            onClick = onChooseFolder,
-            enabled = !state.isBusy,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 8.dp)
-                .heightIn(min = 56.dp),
-            shape = RoundedCornerShape(12.dp),
-        ) {
-            Icon(Icons.Outlined.FolderOpen, contentDescription = null, modifier = Modifier.size(24.dp))
-            Text(
-                "选择整个文件夹",
-                modifier = Modifier.padding(start = 10.dp),
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-            )
         }
         if (state.modelState != ModelInstallState.READY) {
             Row(

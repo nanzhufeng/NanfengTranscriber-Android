@@ -28,6 +28,23 @@ object AsrCostEstimator {
             estimatedCostMicros = estimatedMicros,
         )
     }
+
+    /** Beijing list price; only provider-reported token usage can produce an estimate. */
+    fun estimateQwenAudio31Cn(inputTokens: Long?, outputTokens: Long?): AsrCostEstimate? {
+        if (inputTokens == null || outputTokens == null || inputTokens < 0 || outputTokens < 0) return null
+        val micros = BigDecimal.valueOf(inputTokens).multiply(BigDecimal("0.8"))
+            .add(BigDecimal.valueOf(outputTokens).multiply(BigDecimal("2.7")))
+            .setScale(0, RoundingMode.HALF_UP).longValueExact()
+        return AsrCostEstimate("qwen-audio-3.1-filetrans-cn-token-2026-10-09-v1", "CNY", micros)
+    }
+
+    /** Use speech duration reported by the provider, not the entire source file duration. */
+    fun estimateParaformerV2Cn(reportedSpeechMillis: Long?): AsrCostEstimate? {
+        if (reportedSpeechMillis == null || reportedSpeechMillis < 0) return null
+        val micros = BigDecimal.valueOf(reportedSpeechMillis)
+            .multiply(BigDecimal("0.08")).setScale(0, RoundingMode.HALF_UP).longValueExact()
+        return AsrCostEstimate("paraformer-v2-cn-duration-2026-10-09-v1", "CNY", micros)
+    }
 }
 
 data class AsrCostEstimate(

@@ -1,0 +1,7 @@
+outer/home viewport=1140x2616@442 selected=true navigation=[[96, 2387, 412, 2531], [412, 2387, 728, 2531], [728, 2387, 1044, 2531]]
+outer/history viewport=1140x2616@442 selected=true navigation=[[96, 2387, 412, 2531], [412, 2387, 728, 2531], [728, 2387, 1044, 2531]]
+outer/settings viewport=1140x2616@442 selected=true navigation=[[96, 2387, 412, 2531], [412, 2387, 728, 2531], [728, 2387, 1044, 2531]]
+inner/home viewport=2248x2480@442 selected=true navigation=[[138, 2234, 795, 2389], [795, 2234, 1453, 2389], [1453, 2234, 2111, 2389]]
+inner/history viewport=2248x2480@442 selected=true navigation=[[138, 2234, 795, 2389], [795, 2234, 1453, 2389], [1453, 2234, 2111, 2389]]
+inner/settings viewport=2248x2480@442 selected=true navigation=[[138, 2234, 795, 2389], [795, 2234, 1453, 2389], [1453, 2234, 2111, 2389]]
+fold Settings selection preserved

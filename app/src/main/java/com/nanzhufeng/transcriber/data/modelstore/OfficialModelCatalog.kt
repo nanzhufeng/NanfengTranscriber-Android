@@ -44,7 +44,7 @@ object OfficialModelCatalog {
     )
 
     /** 云端高精度档：不下载伪模型，实际向千问发送所选音频片段。 */
-    val apiCandidates: List<CatalogModel> = listOf(
+    private val legacyQwen: CatalogModel =
         CatalogModel(
             displayName = "高精度 Qwen",
             profile = ModelPerformanceProfile.HIGH_QUALITY,
@@ -66,20 +66,36 @@ object OfficialModelCatalog {
                 recommendedChunkMillis = 30_000L,
             ),
             requiresLocalCache = false,
+        )
+
+    val apiCandidates: List<CatalogModel> = listOf(
+        fileModel("高精度 Qwen", "qwen-audio-3.1-asr-flash-filetrans", AsrProviderId.QWEN_AUDIO_FILETRANS, ModelPerformanceProfile.HIGH_QUALITY),
+        fileModel("低成本 Paraformer", "paraformer-v2", AsrProviderId.PARAFORMER_API, ModelPerformanceProfile.LOW_COST),
+    )
+
+    private fun fileModel(name: String, id: String, provider: AsrProviderId, profile: ModelPerformanceProfile) = CatalogModel(
+        displayName = name, profile = profile, provider = provider,
+        manifest = ModelManifest(id, "dashscope-filetrans-v1", 1L, "0".repeat(64), "DashScope Filetrans API"),
+        downloads = emptyList(), requiresLocalCache = false,
+        capabilities = AsrCapabilities(
+            supportsTimestamp = true, supportsStreaming = false, supportsDiarization = false,
+            supportsHotwords = false, supportsOffline = false, recommendedChunkMillis = 30_000L,
         ),
     )
 
     /** 设置与单项转写中的唯一公开顺序。 */
     val modelSelectionCandidates: List<CatalogModel> = listOf(
         experimentalCandidates.single(),
-        apiCandidates.single(),
-    )
+    ) + apiCandidates
 
     val allCandidates: List<CatalogModel> = modelSelectionCandidates
 
     fun find(modelId: String): CatalogModel? = allCandidates.firstOrNull {
         it.manifest.modelId == modelId
-    }
+    } ?: legacyQwen.takeIf { it.manifest.modelId == modelId }
+
+    fun resolveSelectionId(modelId: String): String = if (modelId == "qwen3-asr-api")
+        "qwen-audio-3.1-asr-flash-filetrans" else modelId
 
     private fun senseVoiceUrl(fileName: String): String =
         "https://huggingface.co/csukuangfj/" +
@@ -118,6 +134,8 @@ data class ModelDownload(
 enum class AsrProviderId {
     SENSEVOICE,
     QWEN3_ASR_API,
+    QWEN_AUDIO_FILETRANS,
+    PARAFORMER_API,
 }
 
 data class AsrCapabilities(
@@ -132,4 +150,5 @@ data class AsrCapabilities(
 enum class ModelPerformanceProfile {
     BALANCED,
     HIGH_QUALITY,
+    LOW_COST,
 }

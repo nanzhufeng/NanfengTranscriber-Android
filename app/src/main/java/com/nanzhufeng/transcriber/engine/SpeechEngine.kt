@@ -18,6 +18,9 @@ interface SpeechEngine : Closeable {
     fun cancel(model: LoadedModel) = Unit
 
     fun prepare(model: LoadedModel) = Unit
+
+    /** Stable source position for resumable cloud chunks; local engines need no extra state. */
+    fun setChunkPosition(model: LoadedModel, processedSamples: Long) = Unit
 }
 
 data class LoadedModel(

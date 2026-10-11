@@ -57,13 +57,15 @@ class PcmTranscriptionCoordinator(
                     if (samples.isEmpty()) break
 
                     val chunkStartMillis = processedSamples * 1_000L / artifact.sampleRate
+                    engine.setChunkPosition(model, processedSamples)
                     val transcript = engine.transcribe(model, samples, language)
                     transcript.invocationUsage?.let { usage ->
+                        val firstUsage = requestCount == 0
+                        inputTokens = inputTokens.plusReported(usage.inputTokens, firstUsage)
+                        outputTokens = outputTokens.plusReported(usage.outputTokens, firstUsage)
+                        totalTokens = totalTokens.plusReported(usage.totalTokens, firstUsage)
                         requestCount += usage.requestCount
                         billableAudioMillis += usage.billableAudioMillis
-                        inputTokens = inputTokens.plusReported(usage.inputTokens)
-                        outputTokens = outputTokens.plusReported(usage.outputTokens)
-                        totalTokens = totalTokens.plusReported(usage.totalTokens)
                     }
                     if (detectedLanguage == null) detectedLanguage = transcript.detectedLanguage
                     transcript.segments.forEach { segment ->
@@ -147,9 +149,9 @@ class PcmTranscriptionCoordinator(
     }
 }
 
-private fun Long?.plusReported(next: Long?): Long? = when {
-    next == null -> this
-    this == null -> next
+private fun Long?.plusReported(next: Long?, firstUsage: Boolean): Long? = when {
+    firstUsage -> next
+    next == null || this == null -> null
     else -> this + next
 }
 

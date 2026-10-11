@@ -12,6 +12,7 @@ import com.nanzhufeng.transcriber.data.media.HistoryMediaPreviewStore
 import com.nanzhufeng.transcriber.data.media.MediaCodecAudioDecoder
 import com.nanzhufeng.transcriber.data.media.PcmAudioArtifact
 import com.nanzhufeng.transcriber.data.modelstore.OfficialModelCatalog
+import com.nanzhufeng.transcriber.domain.task.IslandStage
 import com.nanzhufeng.transcriber.data.modelstore.AsrProviderId
 import com.nanzhufeng.transcriber.data.result.StoredTranscript
 import com.nanzhufeng.transcriber.data.result.StoredTranscriptionCheckpoint
@@ -57,7 +58,7 @@ class TranscriptionTaskRunner(
 ) {
     private val decoder = MediaCodecAudioDecoder(context.contentResolver)
     private val queueModelSession = QueueModelSessionOwner { provider, threadCount ->
-        SpeechEngineFactory.create(provider, threadCount, container.qwen3AsrEngine)
+        SpeechEngineFactory.create(provider, threadCount, container.qwen3AsrEngine, container.qwenFileEngine, container.paraformerEngine)
     }
     private val historyMediaPreviewStore = HistoryMediaPreviewStore(context)
     private val embeddedSubtitleExtractor = EmbeddedSubtitleExtractor(context)
@@ -106,15 +107,15 @@ class TranscriptionTaskRunner(
             )
             return TaskRunOutcome.Waiting("需要重新选择模型")
         }
-        val usesQwenApi = taskModel.provider == AsrProviderId.QWEN3_ASR_API
+        val usesQwenApi = !taskModel.requiresLocalCache
         if (usesQwenApi && !container.textApiCredentials.hasApiKey()) {
             container.tasks.transition(
                 id = taskId,
                 target = TranscriptionTaskState.FAILED,
                 errorCode = "QWEN_API_KEY_MISSING",
-                userMessage = "高精度 Qwen 未配置 API Key，请在设置中保存后重试",
+                userMessage = "云端转写未配置 API Key，请在设置中保存后重试",
             )
-            return TaskRunOutcome.Failed("高精度 Qwen 未配置 API Key")
+            return TaskRunOutcome.Failed("云端转写未配置 API Key")
         }
         val taskDirectory = context.noBackupFilesDir.resolve("tasks/$taskId").toPath()
         val pcmPath = taskDirectory.resolve("decoded.pcm")
@@ -167,7 +168,7 @@ class TranscriptionTaskRunner(
                     )
                 }
                 state = TranscriptionTaskState.TRANSCRIBING
-                onProgress(TaskRuntimeProgress("正在直接提取内嵌字幕", durationMillis, durationMillis))
+                onProgress(TaskRuntimeProgress("正在直接提取内嵌字幕", durationMillis, durationMillis, IslandStage.DECODING))
                 val rawDocument = TranscriptDocument(
                     title = queued.sourceDisplayName.substringBeforeLast('.').ifBlank { "南枫转写结果" },
                     segments = embeddedSubtitles.segments,
@@ -204,8 +205,8 @@ class TranscriptionTaskRunner(
                 withContext(Dispatchers.IO) { container.modelStore.inspect(model.manifest) }
             }
             val modelPath = if (taskModel.requiresLocalCache) inspection?.modelPath else withContext(Dispatchers.IO) {
-                context.noBackupFilesDir.resolve("qwen3-asr-api.session").toPath().also { path ->
-                    if (Files.notExists(path)) Files.write(path, "qwen3-asr-api".toByteArray())
+                taskDirectory.resolve("${taskModel.manifest.modelId}.session").also { path ->
+                    if (Files.notExists(path)) Files.write(path, taskModel.manifest.modelId.toByteArray())
                 }
             }
             if (taskModel.requiresLocalCache && (inspection?.state != ModelInstallState.READY || modelPath == null)) {
@@ -255,7 +256,7 @@ class TranscriptionTaskRunner(
                     Files.deleteIfExists(checkpointPath.resolveSibling("${checkpointPath.fileName}.part"))
                     Files.deleteIfExists(pcmPath)
                 }
-                onProgress(TaskRuntimeProgress("正在准备音轨", 0L, null))
+                onProgress(TaskRuntimeProgress("正在准备音轨", 0L, null, IslandStage.DECODING))
                 val decodeStart = SystemClock.elapsedRealtime()
                 var lastDecodeUpdate = 0L
                 val progressCallback: suspend (com.nanzhufeng.transcriber.data.media.AudioDecodeProgress) -> Unit = { progress ->
@@ -271,7 +272,7 @@ class TranscriptionTaskRunner(
                             totalDurationMillis = total,
                             userMessage = "正在准备音轨 ${formatPercent(processed, total)}",
                         )
-                        onProgress(TaskRuntimeProgress("正在准备音轨", processed, total))
+                        onProgress(TaskRuntimeProgress("正在准备音轨", processed, total, IslandStage.DECODING))
                     }
                 }
                 val decodeResult = if (stagedSourcePath != null) {
@@ -320,7 +321,7 @@ class TranscriptionTaskRunner(
                         userMessage = if (checkpoint.processedSamples > 0L) {
                             "正在从 ${formatPercent(resumedMillis, artifact.durationMillis)} 断点继续"
                         } else if (usesQwenApi) {
-                            "正在连接千问 Qwen3-ASR"
+                            "正在连接 ${taskModel.displayName}"
                         } else {
                             "正在从长期缓存加载 ${taskModel.displayName}"
                         },
@@ -330,9 +331,10 @@ class TranscriptionTaskRunner(
             state = TranscriptionTaskState.TRANSCRIBING
             onProgress(
                 TaskRuntimeProgress(
-                    if (usesQwenApi) "正在连接千问 Qwen3-ASR" else "正在加载长期缓存模型",
+                    if (usesQwenApi) "正在连接 ${taskModel.displayName}" else "正在加载长期缓存模型",
                     resumedMillis,
                     artifact.durationMillis,
+                    IslandStage.LOADING,
                 ),
             )
 
@@ -351,7 +353,7 @@ class TranscriptionTaskRunner(
             engine.prepare(loadedModel)
             val totalModelLoadMillis = checkpoint.modelLoadMillis + modelLoadMillis
             val modelSessionLabel = when {
-                usesQwenApi -> "千问服务连接"
+                usesQwenApi -> "${taskModel.displayName} 服务连接"
                 acquisition.reused -> "模型热复用"
                 else -> "模型加载"
             }
@@ -362,9 +364,9 @@ class TranscriptionTaskRunner(
                 progressMillis = resumedMillis,
                 totalDurationMillis = artifact.durationMillis,
                 userMessage = if (checkpoint.processedSamples > 0L) {
-                    "已从 ${formatPercent(resumedMillis, artifact.durationMillis)} 断点恢复；$modelSessionLabel，正在${if (usesQwenApi) "调用千问 Qwen3-ASR" else "本机转写"}"
+                    "已从 ${formatPercent(resumedMillis, artifact.durationMillis)} 断点恢复；$modelSessionLabel，正在${if (usesQwenApi) "调用 ${taskModel.displayName}" else "本机转写"}"
                 } else if (usesQwenApi) {
-                    "$modelSessionLabel；正在向千问 Qwen3-ASR 发送音频片段"
+                    "$modelSessionLabel；正在向 ${taskModel.displayName} 发送音频片段"
                 } else {
                     "$modelSessionLabel；正在本机转写，音视频不会上传"
                 },
@@ -372,12 +374,13 @@ class TranscriptionTaskRunner(
             onProgress(
                 TaskRuntimeProgress(
                     message = if (usesQwenApi) {
-                        "$modelSessionLabel；正在向千问 Qwen3-ASR 发送音频片段"
+                        "$modelSessionLabel；正在向 ${taskModel.displayName} 发送音频片段"
                     } else {
                         "$modelSessionLabel；正在本机转写"
                     },
                     processedMillis = resumedMillis,
                     totalMillis = artifact.durationMillis,
+                    stage = IslandStage.TRANSCRIBING,
                 ),
             )
 
@@ -423,7 +426,7 @@ class TranscriptionTaskRunner(
                         progressMillis = progress.processedMillis,
                         totalDurationMillis = progress.totalMillis,
                         userMessage = if (usesQwenApi) {
-                            "Qwen3-ASR 已完成 ${progress.segmentCount} 个片段 ${formatPercent(progress.processedMillis, progress.totalMillis)}"
+                            "${taskModel.displayName} 已完成 ${progress.segmentCount} 个片段 ${formatPercent(progress.processedMillis, progress.totalMillis)}"
                         } else {
                             "已转写 ${progress.segmentCount} 个片段 ${formatPercent(progress.processedMillis, progress.totalMillis)}"
                         },
@@ -431,12 +434,13 @@ class TranscriptionTaskRunner(
                     onProgress(
                         TaskRuntimeProgress(
                             message = if (usesQwenApi) {
-                                "千问 Qwen3-ASR 正在转写，已完成 ${progress.segmentCount} 个片段"
+                                "${taskModel.displayName} 正在转写，已完成 ${progress.segmentCount} 个片段"
                             } else {
                                 "正在本机转写，已完成 ${progress.segmentCount} 个片段"
                             },
                             processedMillis = progress.processedMillis,
                             totalMillis = progress.totalMillis,
+                            stage = IslandStage.TRANSCRIBING,
                         ),
                     )
                 },
@@ -593,6 +597,7 @@ class TranscriptionTaskRunner(
         durationMillis: Long,
         onProgress: (TaskRuntimeProgress) -> Unit,
     ): Path {
+        onProgress(TaskRuntimeProgress("正在保存完整转写结果", durationMillis, durationMillis, IslandStage.SAVING))
         val document = rawDocument.copy(polishedText = null)
         val documentPath = taskDirectory.resolve("transcript.json")
         val plainTextPath = taskDirectory.resolve("transcript.txt")
@@ -683,15 +688,21 @@ class TranscriptionTaskRunner(
         errorCode: String? = null,
     ) {
         if (requestCount <= 0) return
-        val estimatedCost = AsrCostEstimator.estimateQwenAsrCn(billableAudioMillis)
+        val taskModel = OfficialModelCatalog.find(task.modelId)
+        val estimatedCost = when (taskModel?.provider) {
+            AsrProviderId.QWEN_AUDIO_FILETRANS -> AsrCostEstimator.estimateQwenAudio31Cn(inputTokens, outputTokens)
+            AsrProviderId.PARAFORMER_API -> AsrCostEstimator.estimateParaformerV2Cn(billableAudioMillis.takeIf { it > 0 })
+            AsrProviderId.QWEN3_ASR_API -> AsrCostEstimator.estimateQwenAsrCn(billableAudioMillis)
+            else -> null
+        }
         runCatching {
             container.asrInvocations.record(
                 AsrInvocationRecord(
                     id = UUID.randomUUID().toString(),
                     taskId = task.id,
                     sourceDisplayName = task.sourceDisplayName,
-                    providerId = "QWEN",
-                    modelId = "qwen3-asr-flash",
+                    providerId = if (taskModel?.provider == AsrProviderId.PARAFORMER_API) "PARAFORMER" else "QWEN",
+                    modelId = if (taskModel?.provider == AsrProviderId.QWEN3_ASR_API) "qwen3-asr-flash" else task.modelId,
                     completedAtMillis = System.currentTimeMillis(),
                     durationMillis = durationMillis.coerceAtLeast(0L),
                     requestCount = requestCount,
@@ -744,6 +755,7 @@ data class TaskRuntimeProgress(
     val message: String,
     val processedMillis: Long,
     val totalMillis: Long?,
+    val stage: IslandStage = IslandStage.PREPARING,
 ) {
     val percentage: Int?
         get() = totalMillis?.takeIf { it > 0L }?.let {

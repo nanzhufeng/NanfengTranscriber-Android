@@ -7,7 +7,6 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.OpenableColumns
-import android.provider.DocumentsContract
 import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -315,31 +314,6 @@ class TranscriptionViewModel(application: Application) : AndroidViewModel(applic
 
     fun selectSharedSources(uris: List<Uri>) = enqueueSources(uris, inheritedPersistedAccess = false)
 
-    fun selectSourceFolder(treeUri: Uri) {
-        if (_uiState.value.isBusy) return
-        viewModelScope.launch {
-            val persisted = runCatching {
-                resolver.takePersistableUriPermission(treeUri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                true
-            }.getOrDefault(false)
-            val mediaUris = runCatching {
-                withContext(Dispatchers.IO) { findMediaDocuments(treeUri) }
-            }.getOrElse {
-                _uiState.update {
-                    it.copy(statusMessage = "无法读取所选文件夹，请确认目录未被移动并重新选择")
-                }
-                return@launch
-            }
-            if (mediaUris.isEmpty()) {
-                _uiState.update {
-                    it.copy(statusMessage = "所选文件夹中没有可读取的音频或视频")
-                }
-                return@launch
-            }
-            enqueueSources(mediaUris, inheritedPersistedAccess = persisted)
-        }
-    }
-
     private fun enqueueSources(uris: List<Uri>, inheritedPersistedAccess: Boolean) {
         if (_uiState.value.isBusy) return
         val distinctUris = uris.distinctBy(Uri::toString)
@@ -410,42 +384,6 @@ class TranscriptionViewModel(application: Application) : AndroidViewModel(applic
                 )
             }
         }
-    }
-
-    private fun findMediaDocuments(treeUri: Uri): List<Uri> {
-        val rootId = DocumentsContract.getTreeDocumentId(treeUri)
-        val pendingDirectories = ArrayDeque<String>().apply { add(rootId) }
-        val results = mutableListOf<Uri>()
-        while (pendingDirectories.isNotEmpty() && results.size < MAX_FOLDER_MEDIA_FILES) {
-            val parentId = pendingDirectories.removeFirst()
-            val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, parentId)
-            resolver.query(
-                childrenUri,
-                arrayOf(
-                    DocumentsContract.Document.COLUMN_DOCUMENT_ID,
-                    DocumentsContract.Document.COLUMN_DISPLAY_NAME,
-                    DocumentsContract.Document.COLUMN_MIME_TYPE,
-                ),
-                null,
-                null,
-                null,
-            )?.use { cursor ->
-                val idColumn = cursor.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DOCUMENT_ID)
-                val nameColumn = cursor.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
-                val mimeColumn = cursor.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_MIME_TYPE)
-                while (cursor.moveToNext() && results.size < MAX_FOLDER_MEDIA_FILES) {
-                    val documentId = cursor.getString(idColumn)
-                    val name = cursor.getString(nameColumn).orEmpty()
-                    val mime = cursor.getString(mimeColumn).orEmpty()
-                    if (mime == DocumentsContract.Document.MIME_TYPE_DIR) {
-                        pendingDirectories.add(documentId)
-                    } else if (isSupportedMedia(name, mime)) {
-                        results += DocumentsContract.buildDocumentUriUsingTree(treeUri, documentId)
-                    }
-                }
-            }
-        }
-        return results
     }
 
     private fun isSupportedMedia(name: String, mime: String): Boolean {
@@ -532,13 +470,13 @@ class TranscriptionViewModel(application: Application) : AndroidViewModel(applic
             val requeuedTasks = tasks.value.filter { it.id in existingIds }
             val usesQwenApi = (sources.map(PendingSource::modelId) + requeuedTasks.map(TranscriptionTaskEntity::modelId))
                 .mapNotNull(OfficialModelCatalog::find)
-                .any { it.provider == AsrProviderId.QWEN3_ASR_API }
+                .any { !it.requiresLocalCache }
             if (usesQwenApi && !withContext(Dispatchers.IO) { container.textApiCredentials.hasApiKey() }) {
                 _uiState.update {
                     it.copy(
                         stage = WorkflowStage.IDLE,
                         progress = null,
-                        statusMessage = "高精度 Qwen 未配置 API Key，请在设置中保存后再开始转写",
+                        statusMessage = "云端转写未配置 API Key，请在设置中保存后再开始转写",
                     )
                 }
                 return@launch
@@ -646,6 +584,12 @@ class TranscriptionViewModel(application: Application) : AndroidViewModel(applic
 
     fun openTaskResult(taskId: String) {
         viewModelScope.launch { loadTaskResult(taskId) }
+    }
+
+    fun dismissExportFeedback(feedbackId: String) {
+        _uiState.update { current ->
+            if (current.exportFeedback?.id == feedbackId) current.copy(exportFeedback = null) else current
+        }
     }
 
     fun copyTaskResult(taskId: String) {
@@ -1055,7 +999,7 @@ class TranscriptionViewModel(application: Application) : AndroidViewModel(applic
                     stage = WorkflowStage.IDLE,
                     modelState = ModelInstallState.READY,
                     modelProgress = null,
-                    statusMessage = "Qwen3-ASR API 将直接发送所选音频片段；需先配置千问 API Key",
+                    statusMessage = "云端模式将发送音频至百炼；需先配置现有百炼 API Key",
                 )
             }
             return
@@ -1218,7 +1162,12 @@ class TranscriptionViewModel(application: Application) : AndroidViewModel(applic
     private suspend fun loadTaskResult(taskId: String) {
         val task = withContext(Dispatchers.IO) { container.tasks.findById(taskId) }
         if (task == null || taskStateOrNull(task) != TranscriptionTaskState.COMPLETED) {
-            _uiState.update { it.copy(statusMessage = "这条记录尚无可打开的完整结果") }
+            _uiState.update {
+                it.copy(
+                    statusMessage = "这条记录尚无可打开的完整结果",
+                    exportFeedback = ExportFeedback("这条记录尚无可打开的完整结果", ExportFeedbackTone.ERROR),
+                )
+            }
             return
         }
         val result = runCatching { withContext(Dispatchers.IO) { loadStoredTranscript(task) } }
@@ -1228,6 +1177,7 @@ class TranscriptionViewModel(application: Application) : AndroidViewModel(applic
                 it.copy(
                     stage = WorkflowStage.ERROR,
                     statusMessage = "历史结果文件无法读取，请保留记录并重新转写",
+                    exportFeedback = ExportFeedback("历史结果文件无法读取，请保留记录并重新转写", ExportFeedbackTone.ERROR),
                 )
             }
             return
@@ -1540,6 +1490,7 @@ data class TranscriptionUiState(
 data class ExportFeedback(
     val message: String,
     val tone: ExportFeedbackTone,
+    val id: String = UUID.randomUUID().toString(),
 )
 
 enum class ExportFeedbackTone {
@@ -1570,7 +1521,6 @@ private val ACTIVE_TASK_STATES = setOf(
     TranscriptionTaskState.EXPORTING,
 )
 
-private const val MAX_FOLDER_MEDIA_FILES = 2_000
 
 private val SUPPORTED_MEDIA_EXTENSIONS = setOf(
     "aac", "flac", "m4a", "mp3", "ogg", "opus", "wav", "wma",

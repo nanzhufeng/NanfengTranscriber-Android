@@ -2,6 +2,8 @@ package com.nanzhufeng.transcriber.ui.screens
 
 import android.net.Uri
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.text.ClickableText
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -42,12 +44,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.nanzhufeng.transcriber.BuildConfig
 import com.nanzhufeng.transcriber.data.modelstore.OfficialModelCatalog
@@ -61,6 +70,7 @@ import com.nanzhufeng.transcriber.ui.components.StatusPill
 import com.nanzhufeng.transcriber.ui.components.SubtleActionButton
 import com.nanzhufeng.transcriber.ui.components.WorkbenchCard
 import com.nanzhufeng.transcriber.ui.components.formatBytes
+import com.nanzhufeng.transcriber.ui.theme.ActionOrange
 import com.nanzhufeng.transcriber.ui.theme.AttentionOchre
 import com.nanzhufeng.transcriber.ui.theme.ParameterPurple
 import com.nanzhufeng.transcriber.ui.theme.NanfengSkinCatalog
@@ -112,7 +122,7 @@ fun SettingsScreen(
             val moduleRows = listOf(
                 SettingsModule.APPEARANCE to SettingsModule.MODEL,
                 SettingsModule.MODEL_DETAILS to SettingsModule.TRANSCRIPTION,
-                SettingsModule.OUTPUT to SettingsModule.PRIVACY,
+                SettingsModule.OUTPUT to SettingsModule.ISLAND,
             )
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -337,7 +347,7 @@ private fun SettingsModuleCard(
             modifier = modifier,
         )
         SettingsModule.APPEARANCE -> AppearanceCard(settings, onSkinChanged, modifier)
-        SettingsModule.PRIVACY -> PrivacyCard(state, settings, modifier)
+        SettingsModule.ISLAND -> BackgroundIslandSettingsCard(modifier)
     }
 }
 
@@ -364,7 +374,10 @@ private fun HighAccuracyServiceCard(
     }
     WorkbenchCard(modifier = modifier.fillMaxWidth()) {
         Spacer(Modifier.height(2.dp))
-        SettingValueRow("转写模型", "Qwen3-ASR")
+        SettingValueRow("转写模型", if (OfficialModelCatalog.resolveSelectionId(settings.modelId) == "paraformer-v2")
+            "Paraformer-v2" else "Qwen Audio 3.1 Filetrans")
+        Text("沿用百炼 API Key；音频上传到百炼临时空间，最长保留 48 小时，转写可能产生费用。",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         OutlinedTextField(
             value = apiKey,
             onValueChange = { input ->
@@ -378,7 +391,7 @@ private fun HighAccuracyServiceCard(
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             singleLine = true,
             visualTransformation = if (apiKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
-            label = { Text("千问 API Key") },
+            label = { Text("百炼 API Key") },
             trailingIcon = {
                 IconButton(onClick = {
                     if (apiKeyVisible) {
@@ -755,38 +768,6 @@ private fun AppearanceCard(
 }
 
 @Composable
-private fun PrivacyCard(
-    state: TranscriptionUiState,
-    settings: TranscriptionSettings,
-    modifier: Modifier = Modifier,
-) {
-    WorkbenchCard(modifier = modifier.fillMaxWidth()) {
-        SectionHeading(
-            title = "隐私与诊断",
-        )
-        Spacer(Modifier.height(10.dp))
-        SettingValueRow(
-            "网络用途",
-            if (OfficialModelCatalog.find(settings.modelId)?.requiresLocalCache == false) {
-                "千问高精度转写"
-            } else {
-                "下载或更新本地模型"
-            },
-        )
-        SettingValueRow(
-            "音视频上传",
-            if (OfficialModelCatalog.find(settings.modelId)?.requiresLocalCache == false) {
-                "仅当前高精度模式发送音频片段至千问"
-            } else {
-                "本地模型模式不会上传"
-            },
-        )
-        SettingValueRow("App 版本", BuildConfig.VERSION_NAME)
-        SettingValueRow("本机引擎", state.nativeStatus)
-    }
-}
-
-@Composable
 private fun AboutSection(
     modifier: Modifier = Modifier,
 ) {
@@ -803,42 +784,52 @@ private fun AboutSection(
             modifier = Modifier.fillMaxWidth(),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = "南枫转写 Android",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = "本地优先的音频、视频转写与明确导出。",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            SelectionContainer {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "南枫转写 Android",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = "本地优先的音频、视频转写与明确导出。",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.56f))
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = "版本信息",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                )
-                Spacer(Modifier.height(4.dp))
-                AboutInfoLine("Android 版本", BuildConfig.VERSION_NAME)
-                AboutInfoLine("构建时间", BuildConfig.BUILD_TIME)
+            SelectionContainer {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "版本信息",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    AboutInfoLine("Android 版本", BuildConfig.VERSION_NAME)
+                    AboutInfoLine("构建时间", BuildConfig.BUILD_TIME)
+                }
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.56f))
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = "开发者信息",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                )
-                Spacer(Modifier.height(4.dp))
-                AboutInfoLine("开发者", "席瑞")
-                AboutInfoLine("联系邮箱", "nanzhufeng.studio@gmail.com")
-                AboutInfoLine("源代码与更新", "GitHub · nanzhufeng/NanfengTranscriber-Android")
-                AboutInfoLine("版权所有", "© 2026 席瑞")
+            SelectionContainer {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "开发者信息",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    AboutInfoLine("开发者", "席瑞")
+                    AboutInfoLine("联系邮箱", "nanzhufeng.studio@gmail.com")
+                    AboutLinkInfoLine(
+                        label = "源码与更新",
+                        value = "GitHub · nanzhufeng/NanfengTranscriber-Android",
+                        url = "https://github.com/nanzhufeng/NanfengTranscriber-Android",
+                    )
+                    AboutInfoLine("版权所有", "© 2026 席瑞")
+                }
             }
         }
     }
@@ -846,11 +837,61 @@ private fun AboutSection(
 
 @Composable
 private fun AboutInfoLine(label: String, value: String) {
+    val text = buildAnnotatedString {
+        withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) {
+            append("$label： ")
+        }
+        append(value)
+    }
     Text(
-        text = "$label：$value",
+        text = text,
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurface,
         modifier = Modifier.padding(vertical = 2.dp),
+    )
+}
+
+@Composable
+private fun AboutLinkInfoLine(
+    label: String,
+    value: String,
+    url: String,
+) {
+    val uriHandler = LocalUriHandler.current
+    val openRepository = { uriHandler.openUri(url) }
+    val text = buildAnnotatedString {
+        withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) {
+            append("$label： ")
+        }
+        pushStringAnnotation(tag = "URL", annotation = url)
+        withStyle(
+            SpanStyle(
+                color = ActionOrange,
+                textDecoration = TextDecoration.Underline,
+            ),
+        ) {
+            append(value)
+        }
+        pop()
+    }
+    ClickableText(
+        text = text,
+        style = MaterialTheme.typography.bodyMedium.copy(
+            color = MaterialTheme.colorScheme.onSurface,
+        ),
+        modifier = Modifier
+            .padding(vertical = 2.dp)
+            .semantics {
+                onClick(label = "打开 GitHub 仓库") {
+                    openRepository()
+                    true
+                }
+            },
+        onClick = { offset ->
+            text.getStringAnnotations(tag = "URL", start = offset, end = offset)
+                .firstOrNull()
+                ?.let { openRepository() }
+        },
     )
 }
 
@@ -895,7 +936,7 @@ private enum class SettingsModule {
     MODEL_DETAILS,
     TRANSCRIPTION,
     OUTPUT,
-    PRIVACY,
+    ISLAND,
 }
 
 private enum class LanguageOption(val label: String, val code: String?) {

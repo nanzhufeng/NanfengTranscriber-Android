@@ -12,6 +12,8 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
+import android.os.Bundle
+import android.os.SystemClock
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
@@ -19,6 +21,10 @@ import com.nanzhufeng.transcriber.MainActivity
 import com.nanzhufeng.transcriber.NanfengTranscriberApplication
 import com.nanzhufeng.transcriber.R
 import com.nanzhufeng.transcriber.data.task.TaskMutationResult
+import com.nanzhufeng.transcriber.data.modelstore.OfficialModelCatalog
+import com.nanzhufeng.transcriber.domain.task.IslandStage
+import com.nanzhufeng.transcriber.domain.task.NanfengIslandState
+import com.nanzhufeng.transcriber.domain.task.TaskProgressUpdateGate
 import com.nanzhufeng.transcriber.domain.task.TaskNotificationPresentationPolicy
 import com.nanzhufeng.transcriber.domain.task.TaskTransitionPolicy
 import com.nanzhufeng.transcriber.domain.task.TranscriptionTaskState
@@ -30,14 +36,20 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.delay
 
 class TranscriptionForegroundService : Service() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private lateinit var notificationManager: NotificationManager
     private lateinit var runner: TranscriptionTaskRunner
     private var activeJob: Job? = null
-    private var activeTaskId: String? = null
+    @Volatile private var activeTaskId: String? = null
     private var wakeLock: PowerManager.WakeLock? = null
+    private lateinit var island: TaskIslandOverlay
+    @Volatile private var latestIsland: NanfengIslandState? = null
+    private val progressGate = TaskProgressUpdateGate()
+    private var monitorJob: Job? = null
+    private var wakeLeaseStarted = 0L
 
     override fun onCreate() {
         super.onCreate()
@@ -45,6 +57,12 @@ class TranscriptionForegroundService : Service() {
         runner = TranscriptionTaskRunner(applicationContext, app.appContainer)
         notificationManager = getSystemService(NotificationManager::class.java)
         createNotificationChannel()
+        island = TaskIslandOverlay(this, onOpen = { id ->
+            startActivity(Intent(this, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                putExtra(EXTRA_TASK_ID, id)
+            })
+        }, onCancel = ::cancelTask)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -62,36 +80,34 @@ class TranscriptionForegroundService : Service() {
         }
 
         acquireWakeLock()
-        startInForeground(taskId, "正在启动本机转写", null)
+        startInForeground(taskId, "准备转写", null)
+        monitorJob = serviceScope.launch {
+            while (true) {
+                delay(1_000)
+                latestIsland?.let(island::update)
+                acquireWakeLock()
+            }
+        }
         activeJob = serviceScope.launch {
-            var queuedTaskId: String? = taskId
-            var cancelled = false
-            while (queuedTaskId != null && !cancelled) {
-                val currentId = queuedTaskId
+            val tasks = (application as NanfengTranscriberApplication).appContainer.tasks
+            try {
+            BackgroundTranscriptionQueue().run(taskId, execute = { currentId ->
                 activeTaskId = currentId
                 runningTaskId = currentId
-                notificationManager.notify(
-                    NOTIFICATION_ID,
-                    buildNotification(currentId, "正在启动本机转写", null, ongoing = true),
+                val task = tasks.findById(currentId)
+                val initial = NanfengIslandState(
+                    currentId, task?.sourceDisplayName ?: "转写任务",
+                    task?.modelId?.let { OfficialModelCatalog.find(it)?.displayName ?: it } ?: "转写模型",
+                    IslandStage.PREPARING, "准备转写",
                 )
-                val outcome = try {
+                publishIsland(initial)
+                val outcome =
                     runner.run(currentId) { progress ->
-                        notificationManager.notify(
-                            NOTIFICATION_ID,
-                            buildNotification(
-                                taskId = currentId,
-                                message = progress.message,
-                                percentage = progress.percentage,
-                                ongoing = true,
-                            ),
-                        )
+                        if (activeTaskId == currentId) publishIsland(initial.copy(
+                            stage = progress.stage, message = progress.message,
+                            processedMillis = progress.processedMillis, totalMillis = progress.totalMillis,
+                        ))
                     }
-                } catch (_: CancellationException) {
-                    cancelled = true
-                    null
-                }
-
-                if (outcome != null) {
                     val finalMessage = when (outcome) {
                         is TaskRunOutcome.Completed -> "转写完成，已归档到历史"
                         is TaskRunOutcome.NoSpeech -> outcome.message
@@ -99,41 +115,44 @@ class TranscriptionForegroundService : Service() {
                         is TaskRunOutcome.Waiting -> outcome.message
                         is TaskRunOutcome.Ignored -> outcome.message
                     }
-                    val successful = outcome is TaskRunOutcome.Completed
-                    notificationManager.notify(
-                        COMPLETION_NOTIFICATION_ID + currentId.hashCode().and(0x3FF),
-                        buildNotification(
-                            taskId = currentId,
-                            message = finalMessage,
-                            percentage = if (successful) 100 else null,
-                            ongoing = false,
-                        ),
-                    )
-                }
+                    val stage = when (outcome) {
+                        is TaskRunOutcome.Completed -> IslandStage.COMPLETED
+                        is TaskRunOutcome.Waiting, is TaskRunOutcome.Ignored -> IslandStage.WAITING
+                        else -> IslandStage.FAILED
+                    }
+                    if (activeTaskId == currentId) publishIsland(initial.copy(stage = stage, message = finalMessage))
                 clearActiveTask(currentId)
-                queuedTaskId = if (cancelled) null else {
-                    (application as NanfengTranscriberApplication).appContainer.tasks.findNextQueued()?.id
+            }, nextTask = {
+                tasks.findNextQueued()?.id.also { if (it == null) delay(2_000) }
+            }, onUnexpectedFailure = { id, error ->
+                val message = "后台处理已中断，打开任务可检查并恢复"
+                try {
+                    val result = tasks.markRecoveryRequired(id, "BACKGROUND_EXECUTION_FAILED", message, error.javaClass.simpleName)
+                    if (result is TaskMutationResult.Rejected && result.task.state == TranscriptionTaskState.QUEUED.name) {
+                        tasks.transition(id, TranscriptionTaskState.FAILED, errorCode = "BACKGROUND_EXECUTION_FAILED", userMessage = message)
+                    }
+                } finally {
+                    val snapshot = latestIsland?.takeIf { it.taskId == id }
+                        ?: NanfengIslandState(id, "转写任务", "转写模型", IslandStage.PREPARING, message)
+                    publishIsland(snapshot.copy(stage = IslandStage.FAILED, message = message))
+                    clearActiveTask(id)
                 }
-                if (queuedTaskId != null) {
-                    releaseWakeLock()
-                    acquireWakeLock()
-                }
+            }, onExit = ::finishWorker)
+            } catch (_: CancellationException) {
+                // The queue's finally owns cleanup; cancellation must not become a task failure.
+            } catch (error: Exception) {
+                // Also cover repository lookup / recovery failures outside runner.run.
+                android.util.Log.e("TranscriptionService", "Background queue stopped: ${error.javaClass.simpleName}")
             }
-            runner.close()
-            ServiceCompat.stopForeground(
-                this@TranscriptionForegroundService,
-                ServiceCompat.STOP_FOREGROUND_REMOVE,
-            )
-            releaseWakeLock()
-            stopSelf()
-            terminateWorkerProcess()
         }
         return START_REDELIVER_INTENT
     }
 
     override fun onTimeout(startId: Int, fgsType: Int) {
+        monitorJob?.cancel()
+        island.close()
         val taskId = activeTaskId
-        if (taskId != null) {
+        try { if (taskId != null) {
             runBlocking(Dispatchers.IO) {
                 (application as NanfengTranscriberApplication).appContainer.tasks.markRecoveryRequired(
                     id = taskId,
@@ -142,16 +161,19 @@ class TranscriptionForegroundService : Service() {
                     technicalDetail = "Android foreground service timeout, type=$fgsType",
                 )
             }
-        }
+        } } finally {
         activeJob?.cancel()
         clearActiveTask(taskId)
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
         releaseWakeLock()
         stopSelf()
         terminateWorkerProcess()
+        }
     }
 
     override fun onDestroy() {
+        monitorJob?.cancel()
+        island.close()
         clearActiveTask(activeTaskId)
         releaseWakeLock()
         serviceScope.cancel()
@@ -176,8 +198,13 @@ class TranscriptionForegroundService : Service() {
             if (activeTaskId != taskId) {
                 return@launch
             }
+            clearActiveTask(taskId)
+            latestIsland = latestIsland?.takeIf { it.taskId == taskId }?.copy(
+                stage = IslandStage.CANCELLED, message = "转写已取消",
+            )
             runner.cancel(taskId)
-            activeJob?.cancel()
+            monitorJob?.cancel()
+            island.close()
             ServiceCompat.stopForeground(
                 this@TranscriptionForegroundService,
                 ServiceCompat.STOP_FOREGROUND_REMOVE,
@@ -186,6 +213,7 @@ class TranscriptionForegroundService : Service() {
                 COMPLETION_NOTIFICATION_ID,
                 buildNotification(taskId, "转写已取消", null, ongoing = false),
             )
+            activeJob?.cancel()
             clearActiveTask(taskId)
             releaseWakeLock()
             stopSelf()
@@ -196,6 +224,31 @@ class TranscriptionForegroundService : Service() {
     private fun terminateWorkerProcess() {
         if (Application.getProcessName().endsWith(TRANSCRIPTION_PROCESS_SUFFIX)) {
             android.os.Process.killProcess(android.os.Process.myPid())
+        }
+    }
+
+    private fun publishIsland(state: NanfengIslandState) {
+        latestIsland = state
+        if (!progressGate.shouldPublish(state, SystemClock.elapsedRealtime())) return
+        island.update(state)
+        runCatching { notificationManager.notify(
+            if (state.ongoing) NOTIFICATION_ID else COMPLETION_NOTIFICATION_ID + state.taskId.hashCode().and(0x3FF),
+            buildNotification(state.taskId, state.message, state.percentage, state.ongoing),
+        ) }.onFailure {
+            // Presentation must not interrupt audio processing or invalidate its saved checkpoint.
+            android.util.Log.w("TranscriptionService", "Notification update unavailable: ${it.javaClass.simpleName}")
+        }
+    }
+
+    private fun finishWorker() {
+        monitorJob?.cancel()
+        island.close()
+        try { runner.close() } finally {
+            clearActiveTask(activeTaskId)
+            ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+            releaseWakeLock()
+            stopSelf()
+            terminateWorkerProcess()
         }
     }
 
@@ -235,9 +288,14 @@ class TranscriptionForegroundService : Service() {
         )
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_transcription_notification)
-            .setContentTitle(if (ongoing) "南枫转写正在后台处理" else "南枫转写任务状态")
+            .setContentTitle(latestIsland?.takeIf { it.taskId == taskId }?.compactText ?: "南枫转写")
             .setContentText(message)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(message))
+            .setStyle(NotificationCompat.BigTextStyle().bigText(latestIsland?.takeIf { it.taskId == taskId }?.let {
+                "${it.sourceName}\n${it.modelName}\n$message" + if (it.ongoing) "\n${it.timeText}" else ""
+            } ?: message))
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            .setShowWhen(false)
+            .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .setContentIntent(openPendingIntent)
             .setOnlyAlertOnce(ongoing)
             .setOngoing(ongoing)
@@ -246,6 +304,9 @@ class TranscriptionForegroundService : Service() {
             .setPriority(NotificationCompat.PRIORITY_LOW)
 
         if (ongoing) {
+            if (Build.VERSION.SDK_INT >= 36) builder.addExtras(Bundle().apply {
+                putBoolean("android.requestPromotedOngoing", true)
+            })
             val cancelIntent = Intent(this, TranscriptionForegroundService::class.java).apply {
                 action = ACTION_CANCEL
                 putExtra(EXTRA_TASK_ID, taskId)
@@ -280,8 +341,9 @@ class TranscriptionForegroundService : Service() {
         )
     }
 
-    private fun acquireWakeLock() {
-        if (wakeLock?.isHeld == true) return
+    @Synchronized private fun acquireWakeLock() {
+        if (wakeLock?.isHeld == true && SystemClock.elapsedRealtime() - wakeLeaseStarted < WAKE_RENEWAL_MILLIS) return
+        releaseWakeLock()
         wakeLock = getSystemService(PowerManager::class.java)
             .newWakeLock(
                 PowerManager.PARTIAL_WAKE_LOCK,
@@ -291,9 +353,10 @@ class TranscriptionForegroundService : Service() {
                 setReferenceCounted(false)
                 acquire(MAX_WAKE_LOCK_MILLIS)
             }
+        wakeLeaseStarted = SystemClock.elapsedRealtime()
     }
 
-    private fun releaseWakeLock() {
+    @Synchronized private fun releaseWakeLock() {
         wakeLock?.takeIf { it.isHeld }?.release()
         wakeLock = null
     }
@@ -310,7 +373,8 @@ class TranscriptionForegroundService : Service() {
         private const val CHANNEL_ID = "background_transcription"
         private const val NOTIFICATION_ID = 2_101
         private const val COMPLETION_NOTIFICATION_ID = 2_102
-        private const val MAX_WAKE_LOCK_MILLIS = 2L * 60L * 60L * 1_000L + 30L * 60L * 1_000L
+        private const val MAX_WAKE_LOCK_MILLIS = 30L * 60L * 1_000L
+        private const val WAKE_RENEWAL_MILLIS = 10L * 60L * 1_000L
         private const val TRANSCRIPTION_PROCESS_SUFFIX = ":transcription"
 
         @Volatile

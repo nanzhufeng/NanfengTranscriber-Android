@@ -14,13 +14,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,7 +46,7 @@ fun AsrInvocationLedgerEntry(records: List<AsrInvocationRecord>, onOpen: () -> U
         SectionHeading(title = "调用记录")
         Spacer(Modifier.height(6.dp))
         Text(
-            "按完整文件记录千问转写；后台分段不会单独显示。不会保存 API Key、音频或转写内容。",
+            "按完整文件记录云端转写；后台分段不会单独显示。不会保存 API Key、音频或转写内容。",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodySmall,
         )
@@ -76,7 +77,12 @@ fun AsrInvocationHistoryScreen(records: List<AsrInvocationRecord>, onBack: () ->
             ) {
                 Text("调用记录", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.weight(1f))
-                TextButton(onClick = onBack) { Text("返回设置") }
+                IconButton(onClick = onBack) {
+                    Icon(
+                        Icons.AutoMirrored.Outlined.ArrowBack,
+                        contentDescription = "返回设置",
+                    )
+                }
             }
             Text(
                 "仅显示本机安全运行元数据。",
@@ -116,7 +122,7 @@ private fun EmptyAsrInvocationLedger() {
         )
         Text("尚无本地调用记录", fontWeight = FontWeight.Medium)
         Text(
-            "当前未发出任何真实千问转写请求。",
+            "当前未发出任何真实云端转写请求。",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodySmall,
         )
@@ -143,7 +149,7 @@ private fun AsrInvocationLedgerRow(record: FileInvocationGroup) {
             )
         }
         Text(record.sourceDisplayName, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
-        Text("千问官方 · Qwen3-ASR", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+        Text("百炼官方 · ${record.latest.modelId}", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
         Text(
             "完整文件 · 后台分段 ${record.requestCount} 个 · 耗时 ${formatInvocationDuration(record.durationMillis)} · ${record.usageLabel()}",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -207,17 +213,18 @@ private fun List<AsrInvocationRecord>.toFileInvocationGroups(): List<FileInvocat
                 latest = latest,
                 requestCount = attempts.sumOf(AsrInvocationRecord::requestCount),
                 durationMillis = attempts.sumOf(AsrInvocationRecord::durationMillis),
-                inputTokens = attempts.mapNotNull(AsrInvocationRecord::inputTokens).sumOrNull(),
-                outputTokens = attempts.mapNotNull(AsrInvocationRecord::outputTokens).sumOrNull(),
-                totalTokens = attempts.mapNotNull(AsrInvocationRecord::totalTokens).sumOrNull(),
+                inputTokens = attempts.map(AsrInvocationRecord::inputTokens).completeSumOrNull(),
+                outputTokens = attempts.map(AsrInvocationRecord::outputTokens).completeSumOrNull(),
+                totalTokens = attempts.map(AsrInvocationRecord::totalTokens).completeSumOrNull(),
                 costCurrencyCode = attempts.mapNotNull(AsrInvocationRecord::costCurrencyCode)
                     .distinct().singleOrNull(),
-                estimatedCostMicros = attempts.mapNotNull(AsrInvocationRecord::estimatedCostMicros).sumOrNull(),
+                estimatedCostMicros = attempts.map(AsrInvocationRecord::estimatedCostMicros).completeSumOrNull(),
             )
         }
         .sortedByDescending { it.latest.completedAtMillis }
 
-private fun List<Long>.sumOrNull(): Long? = takeIf { it.isNotEmpty() }?.sum()
+private fun List<Long?>.completeSumOrNull(): Long? =
+    if (isEmpty() || any { it == null }) null else sumOf { requireNotNull(it) }
 
 private fun formatInvocationTime(value: Long): String =
     SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.SIMPLIFIED_CHINESE).format(Date(value))
@@ -231,8 +238,11 @@ private fun String.safeErrorLabel(): String = when {
     this == "QWEN_NETWORK_ERROR" -> "网络不可用"
     this == "QWEN_RESPONSE_INVALID" -> "响应格式异常"
     this == "QWEN_EMPTY_TRANSCRIPT" -> "未返回转写文字"
-    this == "QWEN_HTTP_401" || this == "QWEN_HTTP_403" -> "鉴权、权限或地域不匹配"
-    this == "QWEN_HTTP_429" -> "服务限流或额度不足"
-    this.startsWith("QWEN_HTTP_5") -> "服务暂不可用"
-    else -> "千问转写请求失败"
+    this.endsWith("HTTP_401") || this.endsWith("HTTP_403") -> "鉴权、权限或地域不匹配"
+    this.endsWith("HTTP_429") -> "服务限流或额度不足"
+    this.startsWith("QWEN_HTTP_5") || this.startsWith("FILETRANS_HTTP_5") -> "服务暂不可用"
+    this == "FILETRANS_POLL_TIMEOUT" -> "云端仍在处理，可继续读取"
+    this == "FILETRANS_SUBMISSION_UNCERTAIN" -> "提交状态待核对，已阻止重复提交"
+    this == "FILETRANS_TASK_EXPIRED" -> "结果已过期，需重新转写"
+    else -> "云端转写请求失败"
 }

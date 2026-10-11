@@ -33,11 +33,13 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.PauseCircle
 import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Movie
 import androidx.compose.material.icons.outlined.MusicNote
@@ -92,7 +94,6 @@ import com.nanzhufeng.transcriber.data.task.TranscriptionTaskEntity
 import com.nanzhufeng.transcriber.domain.export.TranscriptExportFormat
 import com.nanzhufeng.transcriber.domain.task.TranscriptionTaskState
 import com.nanzhufeng.transcriber.ui.TranscriptionUiState
-import com.nanzhufeng.transcriber.ui.ExportFeedbackTone
 import com.nanzhufeng.transcriber.ui.theme.TranscriptPreviewOrange
 import com.nanzhufeng.transcriber.ui.components.TaskMediaPreview
 import com.nanzhufeng.transcriber.ui.components.SubtleActionButton
@@ -129,7 +130,7 @@ fun HistoryScreen(
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     var period by rememberSaveable { mutableStateOf(HistoryPeriod.ALL) }
-    var openedTaskId by rememberSaveable { mutableStateOf<String?>(null) }
+    var requestedResultTaskId by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
     var selectionMode by rememberSaveable { mutableStateOf(false) }
     var selectedHistoryIds by rememberSaveable { mutableStateOf<Set<String>>(emptySet()) }
@@ -232,7 +233,7 @@ fun HistoryScreen(
                                 }
                             },
                             onOpen = {
-                                openedTaskId = task.id
+                                requestedResultTaskId = task.id
                                 onOpenResult(task.id)
                             },
                             onCopy = { onCopyResult(task.id) },
@@ -245,18 +246,22 @@ fun HistoryScreen(
         }
     }
 
-    openedTaskId?.let { taskId ->
+    requestedResultTaskId?.takeIf { taskId ->
+        state.openedResultTaskId == taskId && state.transcriptText != null
+    }?.let { taskId ->
         val task = tasks.firstOrNull { it.id == taskId }
-        HistoryResultPane(
-            task = task,
-            state = state,
-            onDismiss = { openedTaskId = null },
-            onCopy = onCopyTranscriptDraft,
-            onTranscriptDraftChanged = onTranscriptDraftChanged,
-            onExport = onExport,
-            lastExportFormat = lastExportFormat,
-            onExportFormatChanged = onExportFormatChanged,
-        )
+        if (task != null) {
+            HistoryResultPane(
+                task = task,
+                state = state,
+                onDismiss = { requestedResultTaskId = null },
+                onCopy = onCopyTranscriptDraft,
+                onTranscriptDraftChanged = onTranscriptDraftChanged,
+                onExport = onExport,
+                lastExportFormat = lastExportFormat,
+                onExportFormatChanged = onExportFormatChanged,
+            )
+        }
     }
 
     pendingDeleteId?.let { taskId ->
@@ -623,7 +628,12 @@ fun HistoryMediaReviewPane(
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
-                TextButton(onClick = onDismiss) { Text("返回历史") }
+                IconButton(onClick = onDismiss) {
+                    Icon(
+                        Icons.AutoMirrored.Outlined.ArrowBack,
+                        contentDescription = "返回历史",
+                    )
+                }
             }
             WorkbenchCard(modifier = Modifier.fillMaxWidth().weight(1f)) {
                 when {
@@ -908,7 +918,13 @@ private fun HistoryImageReviewPane(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                TextButton(onClick = onDismiss) { Text("关闭", color = Color.White) }
+                IconButton(onClick = onDismiss) {
+                    Icon(
+                        Icons.Outlined.Close,
+                        contentDescription = "关闭原文件核对",
+                        tint = Color.White,
+                    )
+                }
             }
         }
     }
@@ -1022,7 +1038,7 @@ private fun formatPlaybackClock(milliseconds: Int): String {
 
 @Composable
 private fun HistoryResultPane(
-    task: TranscriptionTaskEntity?,
+    task: TranscriptionTaskEntity,
     state: TranscriptionUiState,
     lastExportFormat: TranscriptExportFormat,
     onDismiss: () -> Unit,
@@ -1047,14 +1063,19 @@ private fun HistoryResultPane(
                     Text("转写结果", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(2.dp))
                     Text(
-                        task?.sourceDisplayName ?: "已完成任务",
+                        task.sourceDisplayName,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
-                TextButton(onClick = onDismiss) { Text("返回历史") }
+                IconButton(onClick = onDismiss) {
+                    Icon(
+                        Icons.AutoMirrored.Outlined.ArrowBack,
+                        contentDescription = "返回历史",
+                    )
+                }
             }
             HorizontalDivider()
             TranscriptEditorPanel(
@@ -1074,7 +1095,7 @@ private fun HistoryResultPane(
 
 @Composable
 private fun TranscriptEditorPanel(
-    task: TranscriptionTaskEntity?,
+    task: TranscriptionTaskEntity,
     state: TranscriptionUiState,
     lastExportFormat: TranscriptExportFormat,
     onCopy: () -> Unit,
@@ -1084,20 +1105,7 @@ private fun TranscriptEditorPanel(
     modifier: Modifier,
     fillAvailableHeight: Boolean,
 ) {
-    val resultReady = task != null && state.openedResultTaskId == task.id && state.transcriptText != null
-    if (!resultReady) {
-        Column(
-            modifier = modifier.fillMaxWidth().heightIn(min = 180.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            CircularProgressIndicator(modifier = Modifier.size(28.dp))
-            Spacer(Modifier.height(10.dp))
-            Text("正在读取本机完整结果")
-        }
-        return
-    }
-    val resultTaskId = requireNotNull(task).id
+    val resultTaskId = task.id
     var selectedExportFormat by rememberSaveable(resultTaskId) { mutableStateOf(lastExportFormat) }
     LaunchedEffect(lastExportFormat) {
         selectedExportFormat = lastExportFormat
@@ -1180,17 +1188,6 @@ private fun TranscriptEditorPanel(
                 enabled = !state.isExporting,
                 modifier = Modifier.weight(1f),
             ) { Text("导出") }
-        }
-        state.exportFeedback?.let { feedback ->
-            Text(
-                feedback.message,
-                style = MaterialTheme.typography.bodySmall,
-                color = when (feedback.tone) {
-                    ExportFeedbackTone.WORKING -> MaterialTheme.colorScheme.onSurfaceVariant
-                    ExportFeedbackTone.SUCCESS -> MaterialTheme.colorScheme.primary
-                    ExportFeedbackTone.ERROR -> MaterialTheme.colorScheme.error
-                },
-            )
         }
     }
 }

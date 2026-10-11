@@ -6,31 +6,30 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -42,6 +41,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalView
@@ -55,6 +59,7 @@ import com.nanzhufeng.transcriber.ui.screens.HistoryScreen
 import com.nanzhufeng.transcriber.ui.screens.HistoryMediaReviewPane
 import com.nanzhufeng.transcriber.ui.screens.HomeScreen
 import com.nanzhufeng.transcriber.ui.screens.SettingsScreen
+import com.nanzhufeng.transcriber.ui.components.TopStatusIsland
 
 @Composable
 fun NanfengTranscriberApp(
@@ -77,9 +82,6 @@ fun NanfengTranscriberApp(
     val sourcePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenMultipleDocuments(),
     ) { uris -> viewModel.selectSources(uris) }
-    val sourceFolderPicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocumentTree(),
-    ) { uri -> uri?.let(viewModel::selectSourceFolder) }
     val outputFolderPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocumentTree(),
     ) { uri -> uri?.let(viewModel::setDefaultOutputDirectory) }
@@ -145,7 +147,6 @@ fun NanfengTranscriberApp(
                     tasks = tasks,
                     expanded = expanded,
                     onChooseSource = { sourcePicker.launch(arrayOf("audio/*", "video/*")) },
-                    onChooseFolder = { sourceFolderPicker.launch(null) },
                     onDropSources = viewModel::selectSources,
                     onStart = startTranscription,
                     onTogglePendingSource = viewModel::togglePendingSourceSelection,
@@ -226,6 +227,16 @@ fun NanfengTranscriberApp(
                 )
             }
         }
+        state.exportFeedback?.let { feedback ->
+            TopStatusIsland(
+                feedback = feedback,
+                onTimeout = viewModel::dismissExportFeedback,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .statusBarsPadding()
+                    .padding(top = 8.dp),
+            )
+        }
     }
 }
 
@@ -236,51 +247,29 @@ private fun WorkbenchShell(
     expanded: Boolean,
     content: @Composable () -> Unit,
 ) {
-    if (expanded) {
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .navigationBarsPadding(),
+    Column(Modifier.fillMaxSize().statusBarsPadding()) {
+        Box(Modifier.weight(1f).fillMaxWidth()) { content() }
+        val horizontalGap = if (expanded) 24.dp else 32.dp
+        val bottomGap = if (expanded) 6.dp else 4.dp
+        Box(
+            modifier = Modifier.fillMaxWidth().navigationBarsPadding()
+                .padding(start = horizontalGap, end = horizontalGap, top = 4.dp, bottom = bottomGap)
+                .testTag("floating-bottom-navigation"),
+            contentAlignment = Alignment.Center,
         ) {
-            NavigationRail(
-                containerColor = MaterialTheme.colorScheme.surface,
-            ) {
-                Spacer(Modifier.weight(1f))
-                WorkbenchDestination.entries.forEach { item ->
-                    DestinationButton(
-                        item = item,
-                        selected = destination == item,
-                        onClick = { onDestinationChanged(item) },
-                        modifier = Modifier
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                            .width(64.dp),
-                    )
-                }
-                Spacer(Modifier.weight(1f))
-            }
-            Box(Modifier.fillMaxSize()) { content() }
-        }
-    } else {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding(),
-        ) {
-            Box(Modifier.weight(1f)) { content() }
-            NavigationBar(
-                modifier = Modifier.navigationBarsPadding(),
-                containerColor = MaterialTheme.colorScheme.surface,
-                tonalElevation = 0.dp,
+            Row(
+                modifier = Modifier.widthIn(max = 720.dp).fillMaxWidth()
+                    .shadow(6.dp, RoundedCornerShape(32.dp),
+                        ambientColor = Color(0x12000000), spotColor = Color(0x0A000000))
+                    .clip(RoundedCornerShape(32.dp)).background(Color.White).padding(3.dp),
             ) {
                 WorkbenchDestination.entries.forEach { item ->
                     DestinationButton(
                         item = item,
                         selected = destination == item,
                         onClick = { onDestinationChanged(item) },
-                        modifier = Modifier
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                            .weight(1f),
+                        expanded = expanded,
+                        modifier = Modifier.weight(1f),
                     )
                 }
             }
@@ -293,26 +282,28 @@ private fun DestinationButton(
     item: WorkbenchDestination,
     selected: Boolean,
     onClick: () -> Unit,
+    expanded: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val containerColor by animateColorAsState(
         targetValue = if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-        animationSpec = tween(durationMillis = 120),
+        animationSpec = tween(durationMillis = 120, easing = CubicBezierEasing(0.23f, 1f, 0.32f, 1f)),
         label = "primary-navigation-selection",
     )
     Column(
         modifier = modifier
-            .height(64.dp)
-            .clip(RoundedCornerShape(18.dp))
+            .height(if (expanded) 56.dp else 52.dp)
+            .clip(RoundedCornerShape(28.dp))
             .background(containerColor)
-            .clickable(onClick = onClick)
-            .padding(vertical = 8.dp),
+            .selectable(selected = selected, role = Role.Tab, onClick = onClick)
+            .testTag("nav-${item.name.lowercase()}")
+            .semantics { stateDescription = if (selected) "已选中" else "未选中" },
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically),
+        verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterVertically),
     ) {
         Icon(
             imageVector = item.icon,
-            contentDescription = item.label,
+            contentDescription = null,
             tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(24.dp),
         )
@@ -329,7 +320,7 @@ private enum class WorkbenchDestination(
     val label: String,
     val icon: ImageVector,
 ) {
-    HOME("主页", Icons.Outlined.Home),
+    HOME("首页", Icons.Outlined.Home),
     HISTORY("历史", Icons.Outlined.History),
     SETTINGS("设置", Icons.Outlined.Settings),
 }

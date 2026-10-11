@@ -28,7 +28,7 @@ class TranscriptionSettingsRepository(
         }
         .map { values ->
             TranscriptionSettings(
-                modelId = values[MODEL_ID] ?: DEFAULT_MODEL,
+                modelId = com.nanzhufeng.transcriber.data.modelstore.OfficialModelCatalog.resolveSelectionId(values[MODEL_ID] ?: DEFAULT_MODEL),
                 languageCode = values[LANGUAGE_CODE].orEmpty().ifBlank { null },
                 threadCount = values[THREAD_COUNT]?.coerceIn(0, 8) ?: 0,
                 keepScreenOn = values[KEEP_SCREEN_ON] ?: true,
