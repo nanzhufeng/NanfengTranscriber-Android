@@ -11,10 +11,13 @@ ROOT = Pathname.new(__dir__).parent.expand_path
 options = {}
 OptionParser.new do |parser|
   parser.on('--doc-ref REF', 'Read the three contracts from a historical Git snapshot') { |v| options[:ref] = v }
+  parser.on('--doc-root PATH', 'Read docs from a preserved workspace snapshot; sources stay current') { |v| options[:doc_root] = Pathname.new(v).expand_path }
   parser.on('--baseline REF', 'Require production code/config to match this checkpoint') { |v| options[:baseline] = v }
   parser.on('--apk PATH', 'Verify a frozen APK without rebuilding it') { |v| options[:apk] = v }
   parser.on('--unit-results PATH', 'Require successful JUnit XML reports') { |v| options[:unit] = v }
 end.parse!
+abort('Choose only one of --doc-ref and --doc-root') if options[:ref] && options[:doc_root]
+abort('Invalid --doc-root directory') if options[:doc_root] && !options[:doc_root].directory?
 
 errors = []
 checks = []
@@ -24,6 +27,8 @@ contract = lambda do |path|
     output, error, status = Open3.capture3('git', 'show', "#{options[:ref]}:#{path}", chdir: ROOT.to_s)
     raise "Cannot read scoped contract #{path}: #{error.lines.first}" unless status.success?
     output
+  elsif options[:doc_root] && path.start_with?('docs/')
+    options[:doc_root].join(path).read
   else
     read.call(path)
   end
@@ -60,6 +65,37 @@ background_position = overlay.index('root.background = if')
 padding_position = overlay.index('root.setPadding')
 assert.call(background_position && padding_position && background_position < padding_position, '背景赋值后恢复实际内边距')
 
+# Source-derived boundaries, not proof of runtime correctness. Missing statements are drift.
+unless options[:ref]
+  prefix = 'app/src/main/java/com/nanzhufeng/transcriber/'
+  runner = read.call(prefix + 'service/TranscriptionTaskRunner.kt')
+  view_model = read.call(prefix + 'ui/TranscriptionViewModel.kt')
+  history = read.call(prefix + 'ui/screens/HistoryScreen.kt')
+  output = read.call(prefix + 'data/output/AndroidTranscriptOutputStore.kt')
+  draft = view_model[/fun updateTranscriptDraft\([^}]+\}/m].to_s
+  assert.call(history.include?('state.historyPreviews[it.id]') && domain.include?('不是全文索引') && ui.include?('不是全文搜索'), '历史搜索合同限定文件名与短摘要')
+  assert.call(draft.include?('_uiState.update') && !draft.include?('documentStore.save') && domain.include?('当前不写回transcript.json') && ui.include?('内存草稿'), '编辑合同不虚构JSON持久化')
+  key_check = runner.index('usesQwenApi && !container.textApiCredentials.hasApiKey()')
+  subtitle = runner.index('embeddedSubtitleExtractor.extract(')
+  assert.call(key_check && subtitle && key_check < subtitle && domain.include?('云端模式还先检查Key密文是否存在') && acceptance.include?('云端还需Key存在'), '字幕预检合同保留真实云端Key顺序')
+  assert.call(output.include?('val outputDirectory = rootDocumentUri(treeUri)') && domain.include?('不额外创建媒体子目录') && !domain.include?('每个媒体建立独立结果目录'), '外部输出合同不虚构媒体子目录')
+  assert.call(output.include?('AutomaticExportResult.Skipped') && domain.include?('返回Skipped，不写新字节') && domain.include?('当前UI统一显示'), 'SKIP与UI文案的已知差异没有被假定为新写入')
+  queue = read.call(prefix + 'engine/QueueModelSessionOwner.kt')
+  assert.call(queue.include?('current.provider != provider') && queue.include?('current.threadCount != threadCount') && domain.include?('provider、模型真实路径和有效线程数'), '会话合同包括provider/路径/线程键')
+  client = read.call(prefix + 'engine/DashScopeFileTranscriptionClient.kt')
+  assert.call(!client.match?(/(?:suspend\s+)?fun\s+cancel\s*\(/) && domain.include?('没有服务端取消接口'), '取消合同不承诺远端撤销或免计费')
+  index_path = options[:doc_root] ? options[:doc_root].join('docs/contracts-index.md') : ROOT.join('docs/contracts-index.md')
+  index = index_path.file? ? index_path.read : ''
+  entries = index.scan(/^\| `([^`]+\.md)` \| (CURRENT|GUARD|ROUTE|STATUS|HISTORY|SNAPSHOT) \|/)
+  names = entries.map(&:first)
+  actual_root = options[:doc_root] || ROOT
+  actual_docs = actual_root.join('docs').glob('*.md').map { |p| p.relative_path_from(actual_root).to_s }
+  assert.call(!entries.empty? && names.uniq.size == names.size && (actual_docs - names).empty?, '所有根级合同/状态/快照已唯一登记职责')
+  entries.each { |path, _role| assert.call(ROOT.join(path).file?, "登记文档存在：#{path}") }
+  prompt = contract.call('docs/next-codex-prompt.md')
+  assert.call(prompt.include?('contracts-index.md') && !prompt.include?('当前候选为') && !prompt.include?('暂时搁置'), '续接入口不复活旧候选或暂停约定')
+end
+
 core_names = %w[domain/task/IslandDisplayController domain/task/MainScreenVisibilityPolicy domain/task/NanfengIslandState domain/task/TaskNotificationPresentationPolicy engine/DashScopeFileTranscriptionClient engine/DashScopeFileTranscriptionEngine service/BackgroundTranscriptionQueue service/TaskIslandOverlay service/TranscriptionForegroundService service/TranscriptionTaskRunner ui/components/TopStatusIsland ui/screens/BackgroundIslandSettingsCard]
 core = core_names.map { |path| "app/src/main/java/com/nanzhufeng/transcriber/#{path}.kt" }
 _, _, tracked = Open3.capture3('git', 'ls-files', '--error-unmatch', '--', *core, chdir: ROOT.to_s)
@@ -72,9 +108,9 @@ if options[:baseline]
 end
 
 unless options[:ref]
-  docs = %w[docs/ui-contract.md docs/domain-rules.md docs/product-acceptance.md docs/architecture-governance.md docs/development-experience/README.md docs/development-experience/context.md docs/development-experience/audit-20261011.md docs/development-experience/portable-rules.md]
+  docs = (%w[docs/ui-contract.md docs/domain-rules.md docs/product-acceptance.md docs/architecture-governance.md docs/development-experience/README.md docs/development-experience/context.md docs/development-experience/audit-20261011.md docs/development-experience/portable-rules.md] + entries.map(&:first)).uniq
   docs.each do |path|
-    text = read.call(path)
+    text = contract.call(path)
     text.scan(/\[[^\]]+\]\(([^)]+)\)/).flatten.each do |target|
       next if target.match?(/\A(?:https?:|mailto:|#)/)
       linked = ROOT.join(path).dirname.join(target.split('#').first).cleanpath

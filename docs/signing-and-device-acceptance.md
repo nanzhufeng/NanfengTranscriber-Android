@@ -11,7 +11,7 @@
 - keystore、密码和恢复信息不进入 Git、APK、README 或普通日志。
 - 主 keystore 位于仓库外的本机应用支持目录；同一加密 keystore 备份到 iCloud Drive。
 - 密码保存在 macOS 钥匙串；仓库内的一键脚本只把密码复制到剪贴板，不显示、不落盘。
-- Gradle 按“跨平台环境变量 → 用户级 Gradle 属性 → macOS 钥匙串”顺序读取签名信息。
+- Gradle 按“跨平台环境变量 → App 专属 Gradle 属性”读取；属性仅允许配置在用户级文件。Gradle 不直接读取 macOS 钥匙串；钥匙串是本机凭据管理手段，不是构建自动回退层。
 - 首次安装前记录证书 SHA-256；之后所有验收和发布 APK 必须保持一致。
 - 丢失正式签名意味着无法同签名覆盖升级，也就无法保证 App 私有模型缓存继续使用。
 
@@ -27,10 +27,11 @@
 ```text
 NANFENG_TRANSCRIBER_KEYSTORE=<nanfeng-transcriber-release.jks 的绝对路径>
 NANFENG_TRANSCRIBER_KEYSTORE_PASSWORD=<一键复制得到的密码>
+NANFENG_TRANSCRIBER_KEY_PASSWORD=<对应别名的密钥密码>
 ```
 
 本地平台也可改用用户级 Gradle 属性 `nanfengTranscriber.keystore` 与
-`nanfengTranscriber.storePassword`。两种配置都不得写入仓库；CI 应使用平台的 Secret 管理。
+`nanfengTranscriber.storePassword`、`nanfengTranscriber.keyPassword`。三项配置须完整匹配；两种配置都不得写入仓库，CI 应使用平台的 Secret 管理。依据为 `app/build.gradle.kts` 的 `releaseSigningReady`，不能只配 store password 后宣称正式签名已就绪。
 
 ## 已冻结的签名身份
 
@@ -49,3 +50,5 @@ NANFENG_TRANSCRIBER_KEYSTORE_PASSWORD=<一键复制得到的密码>
 4. 执行 `pm install -r --user 0 <设备临时 APK>`。
 5. 安装前后记录模型/任务数据指纹；不使用直接 `adb install`。
 6. 签名不一致、ColorOS 要求图形确认或可能清数据时停止，不卸载、不清数据。
+
+本门禁仅在用户明确授权覆盖时执行；不自动启动 App 或执行业务。永久禁止全部环境的 `connected*AndroidTest` 及绕过式仪器运行；历史仪器记录不构成当前授权。安装后回读包验证身份/字节，数据指纹保留不能冒充全库逻辑一致性或真实转写验收。

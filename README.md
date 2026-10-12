@@ -2,6 +2,8 @@
 
 音频、视频转写与明确导出。
 
+维护入口：[合同唯一索引](docs/contracts-index.md)。当前能力与未验收边界见 [项目状态](docs/PROJECT_STATUS.md)，模型预设和接口测试不代表真实云端服务已验收。
+
 ## 下载
 
 [下载正式版 v0.14.8](https://github.com/nanzhufeng/NanfengTranscriber-Android/releases/tag/v0.14.8)

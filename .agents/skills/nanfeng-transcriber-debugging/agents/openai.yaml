@@ -1,0 +1,4 @@
+interface:
+  display_name: "南枫转写排错"
+  short_description: "从可复现失败沿转写和后台链路定位原因，区分真实问题与尚未验证判断"
+  default_prompt: "使用 $nanfeng-transcriber-debugging 排查当前故障，先确认真实失败和原因。"

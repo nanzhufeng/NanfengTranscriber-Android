@@ -1,0 +1,4 @@
+interface:
+  display_name: "南枫转写开发"
+  short_description: "按真实任务与唯一所有者实现南枫转写增量，并明确数据安全和验证边界"
+  default_prompt: "使用 $nanfeng-transcriber-development 完成当前南枫转写开发增量并验证受影响入口。"

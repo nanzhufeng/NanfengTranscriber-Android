@@ -1,0 +1,4 @@
+interface:
+  display_name: "南枫转写测试"
+  short_description: "选择南枫转写最小充分回归，分开报告自动检查与设备服务的真实验证"
+  default_prompt: "使用 $nanfeng-transcriber-testing 运行当前改动所需回归并报告未覆盖风险。"
