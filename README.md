@@ -6,9 +6,9 @@
 
 ## 下载
 
-[下载正式版 v0.14.10](https://github.com/nanzhufeng/NanfengTranscriber-Android/releases/tag/v0.14.10)
+[下载已公开正式版 v0.14.8](https://github.com/nanzhufeng/NanfengTranscriber-Android/releases/tag/v0.14.8)
 
-安装包：`nanfeng-transcriber-android-v0.14.10.apk`（本地构建名：`南枫转写.apk`），正式同签名包可保数据覆盖升级。
+当前源码与下方预览为 v0.14.10；其正式签名安装包已冻结，但 GitHub 大文件上传超时，尚未公开。上方链接仍为上一公开版本，不包含本轮保存、自动导出和关闭图标更新；发布进度见[项目状态](docs/PROJECT_STATUS.md)。
 
 ## 功能
 
