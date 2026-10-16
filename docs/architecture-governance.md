@@ -23,9 +23,9 @@
 | 后台提醒 | `NanfengIslandState` + `TaskProgressUpdateGate` | 通知与悬浮窗同一快照，不另算进度 |
 | 灵动岛显示模式 | `IslandDisplayController` | 用户点击切换，新任务回到简洁；进度不自行展开 |
 | 队列释放 | `BackgroundTranscriptionQueue` | 完成、异常与取消都走 finally，不能以文案代替释放 |
-| 正文编辑草稿 | `TranscriptionViewModel.updateTranscriptDraft` | 仅内存；不是JSON持久修订 |
+| 正文编辑草稿 | `TranscriptionViewModel` + `TranscriptDocumentStore` | 输入为草稿，saveTranscriptDraft经saveEdited保存JSON修订正文 |
 | 历史搜索 | `HistoryScreen` + ViewModel短预览 | 文件名/摘要匹配，不是全文数据库索引 |
-| 外部明确导出 | `AndroidTranscriptOutputStore` + `TranscriptExportService` | 直接写SAF目标目录，返回Written或Skipped |
+| 外部自动/手动导出 | `AndroidTranscriptOutputStore` + `TranscriptExportService` | runner在私有结果提交后经AutomaticExportOnce执行一次；直接写SAF目标目录，返回Written或Skipped |
 
 ## 不可破坏边界
 
@@ -45,4 +45,4 @@
 
 ## 不改变功能的维护边界
 
-旧文字后处理实现与测试、Whisper JNI、Room兼容字段目前保留，不能因未公开而在合同整理中直接删除。ViewModel及页面大文件、跨文件/数据库非事务删除和TXT直接写入都是已记录技术债；是否拆分须由后续具体改动和回归范围决定。源码中“never uploads”等旧注释不作为行为事实。云端远端取消、全文搜索和编辑持久化缺口只记录，不偷偷新增能力。
+旧文字后处理实现与测试、Whisper JNI、Room兼容字段目前保留，不能因未公开而在合同整理中直接删除。ViewModel及页面大文件、跨文件/数据库非事务删除和TXT直接写入都是已记录技术债；是否拆分须由后续具体改动和回归范围决定。源码中“never uploads”等旧注释不作为行为事实。云端远端取消、全文搜索缺口只记录，不偷偷新增能力。

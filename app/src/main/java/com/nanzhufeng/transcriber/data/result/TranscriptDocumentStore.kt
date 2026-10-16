@@ -34,6 +34,23 @@ class TranscriptDocumentStore {
         StandardCharsets.UTF_8,
     ).use { reader -> decode(JSONObject(reader.readText())) }
 
+    fun savePlainText(target: Path, text: String) {
+        val temporary = target.resolveSibling("${target.fileName}.part")
+        Files.newBufferedWriter(temporary, StandardCharsets.UTF_8).use { it.write(text) }
+        try {
+            Files.move(temporary, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+        } catch (_: AtomicMoveNotSupportedException) {
+            Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING)
+        }
+    }
+
+    fun saveEdited(source: Path, text: String): StoredTranscript {
+        val stored = load(source)
+        val updated = stored.copy(document = stored.document.copy(polishedText = text))
+        save(source, updated)
+        return updated
+    }
+
     private fun encode(stored: StoredTranscript): JSONObject = JSONObject().apply {
         put("schemaVersion", SCHEMA_VERSION)
         put("title", stored.document.title)
@@ -68,7 +85,7 @@ class TranscriptDocumentStore {
                         )
                     }
                 },
-                polishedText = source.optionalString("polishedText"),
+                polishedText = if (source.isNull("polishedText")) null else source.getString("polishedText"),
             ),
             detectedLanguage = source.optionalString("detectedLanguage"),
             performanceSummary = source.optionalString("performanceSummary"),

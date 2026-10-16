@@ -15,7 +15,7 @@
 | `docs/product-brief.md` | CURRENT | 第一用户任务、产品范围，历史重建目标明确标记 |
 | `docs/domain-rules.md` | CURRENT | 任务、模型、结果、恢复、删除、导出的真实业务语义 |
 | `docs/architecture-governance.md` | CURRENT | 实际源码所有者、依赖边界、兼容能力和架构债务 |
-| `docs/ui-contract.md` | CURRENT | 当前入口、布局、展示与交互；不假设全文搜索/编辑持久化 |
+| `docs/ui-contract.md` | CURRENT | 当前入口、布局、展示与交互；不假设全文搜索或字幕自动重对齐 |
 | `docs/design-reference-index.md` | CURRENT | 设计来源身份与优先顺序；具体几何只由UI合同维护 |
 | `docs/background-island.md` | CURRENT | 后台/岛的平台机制、限制和带版本的设备证据 |
 | `docs/asr-accuracy-strategy.md` | CURRENT | 当前ASR路线/协议、测量门禁；建议与实测分列 |
@@ -43,7 +43,7 @@
 | --- | --- | --- |
 | 模型或云端协议 | domain、architecture、asr策略；涉及许可再更新license/NOTICES | Catalog→设置/单项参数→Factory→runner→调用账本 |
 | 任务状态/恢复/资源 | domain、architecture、后台合同；验收新增对应证据 | Room/schema→runner/queue→通知/岛→主页/历史 |
-| 编辑/搜索/结果/输出 | domain、UI、acceptance的边界与验证 | 原JSON/TXT→内存草稿/短预览→复制→TXT/MD/DOCX或原时间轴SRT→SAF |
+| 编辑/搜索/结果/输出 | domain、UI、acceptance的边界与验证 | 原JSON/TXT→内存草稿→明确保存/短预览→复制→TXT/MD/DOCX或原时间轴SRT→SAF |
 | 导航/皮肤/布局 | UI合同；仅来源改变才更新design-reference | 窄/宽窗口、根路由、历史来路、视频会话、安全区 |
 | 签名/安装/发布 | signing合同、release记录、状态；配置需单独验证 | 本地包→证书/哈希→授权安装→回读→远端附件digest |
 
@@ -52,7 +52,7 @@
 ## 四、冲突与技术债处理
 
 1. 写清旧文档原句、实际源码/测试和影响入口，不凭过时注释推断行为。
-2. 区分“文档错误”“实现限制”“待验证需求”。本轮只更正文档；全文搜索、编辑保存、远端取消、跨介质事务等不能靠改合同变成已实现功能，也不能因如实记录而免除未来验收。
+2. 区分“文档错误”“实现限制”“待验证需求”。合同整理只更正文档；全文搜索、远端取消、跨介质事务等不能靠改合同变成已实现功能，也不能因如实记录而免除未来验收。
 3. 更新所属正文，历史决策标记被哪个现行规则替代；旧QA保持原版本，不删独有事实。
 4. 执行合同门禁及本地链接/Skill检查。语义检查用于发现漂移，不代替真实功能、设备或供应商验证。
 5. 变更源码时才重新选择相应行为回归与构建；纯合同整理复核源码与冻结包不变，不重打/重签/安装。

@@ -90,6 +90,10 @@ class TranscriptionViewModel(application: Application) : AndroidViewModel(applic
         viewModelScope.launch { refreshModelState() }
         viewModelScope.launch {
             container.settings.settings.collect { currentSettings ->
+                pendingSources = pendingSources.map {
+                    it.copy(outputFormat = TranscriptionOutputFormat.valueOf(currentSettings.lastExportFormat.name))
+                }
+                _uiState.update { it.copy(pendingSourceItems = pendingSources.map(PendingSource::toUiItem)) }
                 val model = OfficialModelCatalog.find(currentSettings.modelId)
                 if (model == null) {
                     // Whisper was removed from the public product catalogue. Persist the supported
@@ -344,7 +348,7 @@ class TranscriptionViewModel(application: Application) : AndroidViewModel(applic
                         modelVersion = defaultModel.manifest.version,
                         language = defaults.languageCode,
                         threadCount = defaults.threadCount,
-                        outputFormat = TranscriptionOutputFormat.TXT,
+                        outputFormat = TranscriptionOutputFormat.valueOf(defaults.lastExportFormat.name),
                     )
                 }.getOrNull()
             }
@@ -500,9 +504,9 @@ class TranscriptionViewModel(application: Application) : AndroidViewModel(applic
                                 modelVersion = source.modelVersion,
                                 language = source.language,
                                 threadCount = source.threadCount,
-                                outputFormat = source.outputFormat,
-                                // 任务完成不保存输出目录，也不会自动写入文件；导出仅由结果页的明确操作触发。
-                                exportDirectoryUri = null,
+                                outputFormat = TranscriptionOutputFormat.valueOf(taskSettings.lastExportFormat.name),
+                                // Freeze the selected format and destination for this background task.
+                                exportDirectoryUri = taskSettings.defaultOutputDirectoryUri,
                                 outputConflictPolicy = taskSettings.outputConflictPolicy,
                                 postProcessEnabled = false,
                                 postProcessBaseUrl = taskSettings.postProcessBaseUrl,
@@ -848,7 +852,7 @@ class TranscriptionViewModel(application: Application) : AndroidViewModel(applic
             }
             _uiState.update {
                 val message = result.fold(
-                    onSuccess = { "${format.name} 已保存到默认输出目录" },
+                    onSuccess = { "${format.name}：${it.message}" },
                     onFailure = ::exportFailureMessage,
                 )
                 it.copy(
@@ -858,6 +862,41 @@ class TranscriptionViewModel(application: Application) : AndroidViewModel(applic
                         message = message,
                         tone = if (result.isSuccess) ExportFeedbackTone.SUCCESS else ExportFeedbackTone.ERROR,
                     ),
+                )
+            }
+        }
+    }
+
+    fun saveTranscriptDraft() {
+        if (_uiState.value.isSavingTranscript) return
+        val taskId = _uiState.value.openedResultTaskId ?: return
+        val task = tasks.value.firstOrNull { it.id == taskId } ?: return
+        val text = _uiState.value.transcriptText ?: return
+        _uiState.update { it.copy(isSavingTranscript = true) }
+        viewModelScope.launch {
+            val result = runCatching {
+                withContext(Dispatchers.IO) {
+                    val path = Paths.get(URI(requireNotNull(task.outputUri)))
+                    if (path.fileName.toString().endsWith(".json", true)) {
+                        documentStore.saveEdited(path, text)
+                    } else {
+                        documentStore.savePlainText(path, text)
+                        loadStoredTranscript(task)
+                    }
+                }
+            }
+            if (result.isSuccess && _uiState.value.openedResultTaskId == taskId) {
+                latestDocument = result.getOrThrow().document
+            }
+            _uiState.update { current ->
+                val message = if (result.isSuccess) "修改已保存" else "保存失败，修改仍在编辑框中，请重试"
+                current.copy(
+                    isSavingTranscript = false,
+                    historyPreviews = if (result.isSuccess) current.historyPreviews +
+                        (taskId to formatTranscriptPreview(text, maxCharacters = 120)) else current.historyPreviews,
+                    exportFeedback = if (current.openedResultTaskId == taskId)
+                        ExportFeedback(message, if (result.isSuccess) ExportFeedbackTone.SUCCESS else ExportFeedbackTone.ERROR)
+                        else current.exportFeedback,
                 )
             }
         }
@@ -1255,22 +1294,7 @@ class TranscriptionViewModel(application: Application) : AndroidViewModel(applic
     }
 
     private fun loadPreviewText(task: TranscriptionTaskEntity): String {
-        val outputPath = Paths.get(URI(requireNotNull(task.outputUri)))
-        val plainTextPath = if (outputPath.fileName.toString().endsWith(".json", ignoreCase = true)) {
-            outputPath.resolveSibling("transcript.txt")
-        } else {
-            outputPath
-        }
-        val text = if (Files.isRegularFile(plainTextPath)) {
-            Files.newBufferedReader(plainTextPath).use { reader ->
-                val buffer = CharArray(360)
-                val count = reader.read(buffer)
-                if (count <= 0) "" else String(buffer, 0, count)
-            }
-        } else {
-            exportService.renderTxt(loadStoredTranscript(task).document)
-        }
-        return formatTranscriptPreview(text, maxCharacters = 120)
+        return formatTranscriptPreview(exportService.renderTxt(loadStoredTranscript(task).document), maxCharacters = 120)
     }
 
     private fun cleanupTaskFiles(task: TranscriptionTaskEntity) {
@@ -1466,6 +1490,7 @@ data class TranscriptionUiState(
     val statusMessage: String = "正在检查模型缓存",
     val revealedPostProcessApiKey: String? = null,
     val isExporting: Boolean = false,
+    val isSavingTranscript: Boolean = false,
     val exportFeedback: ExportFeedback? = null,
     val activeTaskId: String? = null,
 ) {

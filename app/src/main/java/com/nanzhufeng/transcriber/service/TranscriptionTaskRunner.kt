@@ -38,6 +38,7 @@ import com.nanzhufeng.transcriber.engine.PcmTranscriptionResult
 import com.nanzhufeng.transcriber.engine.TranscriptSegment
 import com.nanzhufeng.transcriber.engine.QueueModelSessionOwner
 import com.nanzhufeng.transcriber.engine.SpeechEngineFactory
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -620,6 +621,28 @@ class TranscriptionTaskRunner(
             Files.newOutputStream(plainTextPath).use { output ->
                 exportService.export(document, TranscriptExportFormat.TXT, output)
             }
+            val automaticExportMessage = try {
+                kotlinx.coroutines.currentCoroutineContext().ensureActive()
+                com.nanzhufeng.transcriber.data.result.AutomaticExportOnce().run(taskDirectory) {
+                val destination = queued.exportDirectoryUri
+                if (destination.isNullOrBlank()) {
+                    "未设置默认输出目录，请在设置中选择后手动导出"
+                } else {
+                    val result = com.nanzhufeng.transcriber.data.output.AndroidTranscriptOutputStore(
+                        context.contentResolver, exportService,
+                    ).export(
+                        Uri.parse(destination), queued.sourceDisplayName, document,
+                        TranscriptExportFormat.valueOf(queued.outputFormat),
+                        com.nanzhufeng.transcriber.data.task.OutputConflictPolicy.valueOf(queued.outputConflictPolicy),
+                    )
+                    result.message
+                }
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                "自动导出未确认，完整结果已保留，请检查输出目录"
+            }
             requireUpdated(
                 container.tasks.transition(
                     id = queued.id,
@@ -633,6 +656,7 @@ class TranscriptionTaskRunner(
                         } else {
                             "转写完成，完整结果已保存"
                         },
+                        automaticExportMessage,
                     ).joinToString("；"),
                     technicalDetail = performanceSummary,
                 ),

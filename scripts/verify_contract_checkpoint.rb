@@ -14,6 +14,7 @@ OptionParser.new do |parser|
   parser.on('--doc-root PATH', 'Read docs from a preserved workspace snapshot; sources stay current') { |v| options[:doc_root] = Pathname.new(v).expand_path }
   parser.on('--baseline REF', 'Require production code/config to match this checkpoint') { |v| options[:baseline] = v }
   parser.on('--apk PATH', 'Verify a frozen APK without rebuilding it') { |v| options[:apk] = v }
+  parser.on('--release-record PATH', 'Read the expected APK digest from this versioned record') { |v| options[:release_record] = v }
   parser.on('--unit-results PATH', 'Require successful JUnit XML reports') { |v| options[:unit] = v }
 end.parse!
 abort('Choose only one of --doc-ref and --doc-root') if options[:ref] && options[:doc_root]
@@ -74,12 +75,12 @@ unless options[:ref]
   output = read.call(prefix + 'data/output/AndroidTranscriptOutputStore.kt')
   draft = view_model[/fun updateTranscriptDraft\([^}]+\}/m].to_s
   assert.call(history.include?('state.historyPreviews[it.id]') && domain.include?('不是全文索引') && ui.include?('不是全文搜索'), '历史搜索合同限定文件名与短摘要')
-  assert.call(draft.include?('_uiState.update') && !draft.include?('documentStore.save') && domain.include?('当前不写回transcript.json') && ui.include?('内存草稿'), '编辑合同不虚构JSON持久化')
+  assert.call(draft.include?('_uiState.update') && !draft.include?('documentStore.save') && view_model.include?('documentStore.saveEdited(path, text)') && domain.include?('点击保存才原子替换transcript.json') && ui.include?('内存草稿'), '输入草稿与明确持久保存分离')
   key_check = runner.index('usesQwenApi && !container.textApiCredentials.hasApiKey()')
   subtitle = runner.index('embeddedSubtitleExtractor.extract(')
   assert.call(key_check && subtitle && key_check < subtitle && domain.include?('云端模式还先检查Key密文是否存在') && acceptance.include?('云端还需Key存在'), '字幕预检合同保留真实云端Key顺序')
   assert.call(output.include?('val outputDirectory = rootDocumentUri(treeUri)') && domain.include?('不额外创建媒体子目录') && !domain.include?('每个媒体建立独立结果目录'), '外部输出合同不虚构媒体子目录')
-  assert.call(output.include?('AutomaticExportResult.Skipped') && domain.include?('返回Skipped，不写新字节') && domain.include?('当前UI统一显示'), 'SKIP与UI文案的已知差异没有被假定为新写入')
+  assert.call(output.include?('AutomaticExportResult.Skipped') && domain.include?('返回Skipped，不写新字节') && domain.include?('UI按Written/Skipped显示'), 'SKIP与UI文案的已知差异没有被假定为新写入')
   queue = read.call(prefix + 'engine/QueueModelSessionOwner.kt')
   assert.call(queue.include?('current.provider != provider') && queue.include?('current.threadCount != threadCount') && domain.include?('provider、模型真实路径和有效线程数'), '会话合同包括provider/路径/线程键')
   client = read.call(prefix + 'engine/DashScopeFileTranscriptionClient.kt')
@@ -130,7 +131,8 @@ if options[:unit]
   assert.call(totals['tests'].positive? && totals['failures'].zero? && totals['errors'].zero? && totals['skipped'].zero?, "JUnit 最终回归：#{totals}")
 end
 if options[:apk]
-  expected = read.call('docs/releases/v0.14.8-verification.md')[/APK SHA-256.*?([a-f0-9]{64})/, 1]
+  record = read.call(options[:release_record] || 'docs/releases/v0.14.8-verification.md')
+  expected = record[/APK SHA-256.*?([a-f0-9]{64})/, 1] || record[/SHA256\s*`([a-f0-9]{64})`/, 1]
   assert.call(expected && File.file?(options[:apk]) && Digest::SHA256.file(options[:apk]).hexdigest == expected, '冻结 Release 字节未改变')
 end
 

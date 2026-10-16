@@ -21,13 +21,13 @@ class TranscriptExportService {
     }
 
     fun renderTxt(document: TranscriptDocument): String {
-        val text = document.polishedText?.trim().takeUnless { it.isNullOrEmpty() }
+        val text = document.polishedText?.trim()
             ?: readableSegments(document.segments).joinToString("\n") { it.text }
         return text.trimEnd() + "\n"
     }
 
     fun renderMarkdown(document: TranscriptDocument): String {
-        val polished = document.polishedText?.trim().takeUnless { it.isNullOrEmpty() }
+        val polished = document.polishedText?.trim()
         if (polished != null) {
             val paragraphs = polished.lineSequence()
                 .map(String::trim)
@@ -137,7 +137,7 @@ class TranscriptExportService {
     }
 
     private fun buildDocumentXml(document: TranscriptDocument): String {
-        val bodyText = document.polishedText?.trim().takeUnless { it.isNullOrEmpty() }
+        val bodyText = document.polishedText?.trim()
             ?: readableSegments(document.segments).joinToString("\n") { it.text }
         val paragraphs = bodyText.lineSequence()
             .map(String::trim)

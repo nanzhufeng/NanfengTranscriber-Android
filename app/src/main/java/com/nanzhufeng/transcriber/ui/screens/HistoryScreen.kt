@@ -33,11 +33,11 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.PauseCircle
+import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.DeleteOutline
@@ -123,6 +123,7 @@ fun HistoryScreen(
     onDeleteTask: (String) -> Unit,
     onDeleteTasks: (Set<String>) -> Unit,
     onCleanInvalidHistory: () -> Unit,
+    onSaveTranscript: () -> Unit,
     onTranscriptDraftChanged: (String) -> Unit,
     onExport: (TranscriptExportFormat) -> Unit,
     onExportFormatChanged: (TranscriptExportFormat) -> Unit,
@@ -256,7 +257,8 @@ fun HistoryScreen(
                 state = state,
                 onDismiss = { requestedResultTaskId = null },
                 onCopy = onCopyTranscriptDraft,
-                onTranscriptDraftChanged = onTranscriptDraftChanged,
+                onSaveTranscript = onSaveTranscript,
+                            onTranscriptDraftChanged = onTranscriptDraftChanged,
                 onExport = onExport,
                 lastExportFormat = lastExportFormat,
                 onExportFormatChanged = onExportFormatChanged,
@@ -579,6 +581,7 @@ fun HistoryMediaReviewPane(
     onVideoPlaybackSnapshot: (positionMillis: Long, playWhenReady: Boolean) -> Unit,
     onDismiss: () -> Unit,
     onCopy: () -> Unit,
+    onSaveTranscript: () -> Unit,
     onTranscriptDraftChanged: (String) -> Unit,
     onExport: (TranscriptExportFormat) -> Unit,
     onExportFormatChanged: (TranscriptExportFormat) -> Unit,
@@ -630,8 +633,8 @@ fun HistoryMediaReviewPane(
                 }
                 IconButton(onClick = onDismiss) {
                     Icon(
-                        Icons.AutoMirrored.Outlined.ArrowBack,
-                        contentDescription = "返回历史",
+                        Icons.Outlined.Close,
+                        contentDescription = "关闭原文件核对",
                     )
                 }
             }
@@ -686,6 +689,7 @@ fun HistoryMediaReviewPane(
                             state = state,
                             lastExportFormat = lastExportFormat,
                             onCopy = onCopy,
+                            onSaveTranscript = onSaveTranscript,
                             onTranscriptDraftChanged = onTranscriptDraftChanged,
                             onExport = onExport,
                             onExportFormatChanged = onExportFormatChanged,
@@ -1043,6 +1047,7 @@ private fun HistoryResultPane(
     lastExportFormat: TranscriptExportFormat,
     onDismiss: () -> Unit,
     onCopy: () -> Unit,
+    onSaveTranscript: () -> Unit,
     onTranscriptDraftChanged: (String) -> Unit,
     onExport: (TranscriptExportFormat) -> Unit,
     onExportFormatChanged: (TranscriptExportFormat) -> Unit,
@@ -1072,8 +1077,8 @@ private fun HistoryResultPane(
                 }
                 IconButton(onClick = onDismiss) {
                     Icon(
-                        Icons.AutoMirrored.Outlined.ArrowBack,
-                        contentDescription = "返回历史",
+                        Icons.Outlined.Close,
+                        contentDescription = "关闭转写结果",
                     )
                 }
             }
@@ -1083,7 +1088,8 @@ private fun HistoryResultPane(
                 state = state,
                 lastExportFormat = lastExportFormat,
                 onCopy = onCopy,
-                onTranscriptDraftChanged = onTranscriptDraftChanged,
+                onSaveTranscript = onSaveTranscript,
+                            onTranscriptDraftChanged = onTranscriptDraftChanged,
                 onExport = onExport,
                 onExportFormatChanged = onExportFormatChanged,
                 modifier = Modifier.fillMaxWidth().weight(1f),
@@ -1099,6 +1105,7 @@ private fun TranscriptEditorPanel(
     state: TranscriptionUiState,
     lastExportFormat: TranscriptExportFormat,
     onCopy: () -> Unit,
+    onSaveTranscript: () -> Unit,
     onTranscriptDraftChanged: (String) -> Unit,
     onExport: (TranscriptExportFormat) -> Unit,
     onExportFormatChanged: (TranscriptExportFormat) -> Unit,
@@ -1121,10 +1128,16 @@ private fun TranscriptEditorPanel(
                 Spacer(Modifier.width(4.dp))
                 Text("复制全部")
             }
+            TextButton(onClick = onSaveTranscript, enabled = !state.isSavingTranscript) {
+                Icon(Icons.Outlined.Save, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(4.dp))
+                Text(if (state.isSavingTranscript) "保存中" else "保存")
+            }
         }
         OutlinedTextField(
             value = requireNotNull(state.transcriptText),
             onValueChange = onTranscriptDraftChanged,
+            readOnly = state.isSavingTranscript,
             modifier = if (fillAvailableHeight) {
                 Modifier.fillMaxWidth().weight(1f)
             } else {
