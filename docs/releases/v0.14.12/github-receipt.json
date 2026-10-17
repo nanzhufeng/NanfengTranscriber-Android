@@ -1,0 +1,27 @@
+{
+  "assets": [
+    {
+      "browser_download_url": "https://github.com/nanzhufeng/NanfengTranscriber-Android/releases/download/v0.14.12/nanfeng-transcriber-android-v0.14.12.apk",
+      "digest": "sha256:00f88182a63afbcb6ab53583ccef6b3df8428fb6e436b45e1813300c5a5d6f1e",
+      "id": 649599059,
+      "name": "nanfeng-transcriber-android-v0.14.12.apk",
+      "size": 106883328,
+      "state": "uploaded"
+    },
+    {
+      "browser_download_url": "https://github.com/nanzhufeng/NanfengTranscriber-Android/releases/download/v0.14.12/SHA256SUMS.txt",
+      "digest": "sha256:20fd36e45a492aa2c5aa11e325e309ec70332e1516b3a273ef9738578bbf722e",
+      "id": 649599070,
+      "name": "SHA256SUMS.txt",
+      "size": 107,
+      "state": "uploaded"
+    }
+  ],
+  "draft": false,
+  "html_url": "https://github.com/nanzhufeng/NanfengTranscriber-Android/releases/tag/v0.14.12",
+  "id": 415593775,
+  "prerelease": false,
+  "published_at": "2026-10-17T05:23:18Z",
+  "tag_name": "v0.14.12",
+  "target_commitish": "242e2cc5ef69c67795259da207097d200bfe52f4"
+}
