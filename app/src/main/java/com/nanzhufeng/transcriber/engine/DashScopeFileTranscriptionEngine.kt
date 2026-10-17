@@ -47,6 +47,7 @@ class DashScopeFileTranscriptionEngine(
                 }
             } else JSONObject()
             if (state.has("segments")) return@withContext restore(state, language)
+            recoverNoSpeech(statePath, state, language)?.let { return@withContext it }
             var taskId = state.optString("task_id")
             if (taskId.isBlank()) {
                 if (state.optBoolean("submission_pending")) throw failure(
@@ -83,8 +84,12 @@ class DashScopeFileTranscriptionEngine(
                     is FileTranscriptionState.Waiting -> delay(pollIntervalMillis)
                     is FileTranscriptionState.Failed -> {
                         // Confirmed terminal failure: a user-requested retry may create a fresh task.
-                        save(statePath, JSONObject())
-                        throw failure(remote.message, "FILETRANS_TASK_FAILED", attempted = true)
+                        val failed = JSONObject().put("failed_task_id", taskId)
+                            .put("failure_detail", remote.safeTechnicalDetail)
+                        save(statePath, failed)
+                        recoverNoSpeech(statePath, failed, language)?.let { return@withContext it }
+                        throw EngineTranscriptionException(remote.message, "FILETRANS_TASK_FAILED",
+                            safeTechnicalDetail = remote.safeTechnicalDetail, providerRequestAttempted = true)
                     }
                     is FileTranscriptionState.Ready -> {
                         val segments = client.downloadResult(remote.resultUrl)
@@ -110,6 +115,20 @@ class DashScopeFileTranscriptionEngine(
 
     override fun releaseModel(model: LoadedModel) = Unit
     override fun close() = Unit
+
+    /** Paraformer explicitly confirmed no valid speech, not a failed download or unknown outcome.
+     * Returning an empty chunk lets the coordinator preserve earlier text; a wholly empty file
+     * still follows the runner's existing NO_SPEECH policy. Also recovers v0.14.11 receipts offline. */
+    private fun recoverNoSpeech(path: Path, state: JSONObject, language: String?): EngineTranscript? {
+        if (providerModel != FileTranscriptionModel.PARAFORMER_V2 ||
+            state.optString("failed_task_id").isBlank() ||
+            "provider_code=SUCCESS_WITH_NO_VALID_FRAGMENT" !in state.optString("failure_detail").split("; ")) return null
+        val completed = JSONObject().put("task_id", state.getString("failed_task_id"))
+            .put("segments", JSONArray()).put("provider_outcome", "NO_SPEECH")
+            .put("failure_detail", state.getString("failure_detail"))
+        save(path, completed)
+        return restore(completed, language)
+    }
 
     private fun restore(state: JSONObject, language: String?): EngineTranscript {
         val segments = state.getJSONArray("segments")

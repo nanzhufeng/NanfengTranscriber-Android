@@ -449,6 +449,9 @@ class TranscriptionTaskRunner(
             val attemptTranscribeMillis = SystemClock.elapsedRealtime() - transcribeStart
             val totalTranscribeMillis = baseTranscribeMillis + attemptTranscribeMillis
             if (transcription is PcmTranscriptionResult.Failure) {
+                if (transcription.errorCode == "FILETRANS_TASK_FAILED") {
+                    android.util.Log.w("NanfengFileTranscription", transcription.technicalDetail ?: "status=FAILED")
+                }
                 if (usesQwenApi) {
                     recordQwenFileInvocation(
                         task = queued,

@@ -36,7 +36,7 @@ data class FileTranscriptionUsage(
 sealed interface FileTranscriptionState {
     data class Waiting(val status: String) : FileTranscriptionState
     data class Ready(val resultUrl: String, val usage: FileTranscriptionUsage) : FileTranscriptionState
-    data class Failed(val message: String) : FileTranscriptionState
+    data class Failed(val message: String, val safeTechnicalDetail: String? = null) : FileTranscriptionState
 }
 
 /** File URL transport only. The caller must persist task IDs before polling and supply a private,
@@ -125,13 +125,19 @@ class DashScopeFileTranscriptionClient(
         if (output.optString("task_id") != taskId) invalidResponse()
         return when (val status = output.optString("task_status")) {
             "PENDING", "RUNNING" -> FileTranscriptionState.Waiting(status)
-            "FAILED", "CANCELED" -> FileTranscriptionState.Failed("云端文件转写失败或已取消，请检查音频和文件链接后重试")
+            "FAILED", "CANCELED" -> FileTranscriptionState.Failed(
+                "云端文件转写失败或已取消，请检查音频和文件链接后重试",
+                failureDetail(output, response, status),
+            )
             "SUCCEEDED" -> {
                 val results = output.optJSONArray("results") ?: invalidResponse()
                 if (results.length() != 1) invalidResponse()
                 val result = results.optJSONObject(0) ?: invalidResponse()
                 if (result.optString("subtask_status") != "SUCCEEDED") {
-                    FileTranscriptionState.Failed("云端无法完成此音频，请检查文件链接的有效期、访问权限和格式")
+                    FileTranscriptionState.Failed(
+                        "云端无法完成此音频，请检查文件链接的有效期、访问权限和格式",
+                        failureDetail(result, response, "FAILED"),
+                    )
                 } else {
                     val url = result.optString("transcription_url")
                     if (!trustedResourceUrl(url)) invalidResponse()
@@ -196,6 +202,22 @@ class DashScopeFileTranscriptionClient(
     }
 
     companion object {
+        // Only protocol metadata is retained. Never retain a provider message, audio URL or body.
+        private fun failureDetail(error: JSONObject, response: JSONObject, status: String): String = buildString {
+            append("status=").append(status)
+            val code = error.optString("code").ifBlank { response.optString("code") }
+            if (code in setOf("SUCCESS_WITH_NO_VALID_FRAGMENT", "ASR_RESPONSE_HAVE_NO_WORDS", "FILE_DOWNLOAD_FAILED", "FILE_CHECK_FAILED", "Arrearage") ||
+                code.matches(Regex("(?:InvalidFile|InvalidParameter|BadRequest|AccessDenied|InternalError|Throttling|LimitExceeded|QuotaExhausted|ServiceUnavailable|ModelNotFound|ModelNotSupported|DataInspectionFailed|Audio|Unsupported)[A-Za-z0-9_.]{0,80}"))) {
+                append("; provider_code=").append(code)
+            }
+            for ((label, value) in listOf("task_id" to response.optJSONObject("output")?.optString("task_id"),
+                "request_id" to response.optString("request_id"))) {
+                if (value != null && value.matches(Regex("[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}"))) {
+                    append("; ").append(label).append('=').append(value)
+                }
+            }
+        }
+
         @OptIn(ExperimentalCoroutinesApi::class)
         private suspend fun execute(call: Call): Response = suspendCancellableCoroutine { continuation ->
             continuation.invokeOnCancellation { call.cancel() }
