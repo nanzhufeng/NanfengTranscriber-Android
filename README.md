@@ -8,7 +8,7 @@
 
 [下载已公开正式版 v0.14.8](https://github.com/nanzhufeng/NanfengTranscriber-Android/releases/tag/v0.14.8)
 
-当前源码与下方预览为 v0.14.10；其正式签名安装包已冻结，但 GitHub 大文件上传超时，尚未公开。上方链接仍为上一公开版本，不包含本轮保存、自动导出和关闭图标更新；发布进度见[项目状态](docs/PROJECT_STATUS.md)。
+当前源码与下方预览为 v0.14.12；正式签名安装包上传中，尚未公开。上方链接仍为上一公开版本，不包含本轮保存、自动导出、关闭图标与Paraformer尾段修复；发布进度见[项目状态](docs/PROJECT_STATUS.md)。
 
 ## 功能
 
@@ -19,11 +19,11 @@
 
 ## 界面预览
 
-API 35 独立隔离模拟器，展开视口1600 × 1800 / 320dpi，正式v0.14.10。输入为自造两段文字字幕演示视频，不是主设备/私人素材，也不是ASR准确率验证。
+API 35 独立隔离模拟器，展开视口1600 × 1800 / 320dpi，正式v0.14.12。输入为自造两段文字字幕演示视频，不是主设备/私人素材，也不是ASR准确率验证。
 
 <table>
   <tr>
-    <td align="center"><img src="docs/qa/readme-v0.14.10/result-expanded-api35.png" width="300" alt="转写结果与保存、关闭操作"><br><sub>转写结果</sub></td>
-    <td align="center"><img src="docs/qa/readme-v0.14.10/media-review-expanded-api35.png" width="300" alt="原文件核对与关闭操作"><br><sub>原文件核对</sub></td>
+    <td align="center"><img src="docs/qa/readme-v0.14.12/result-expanded-api35.png" width="300" alt="转写结果与保存、关闭操作"><br><sub>转写结果</sub></td>
+    <td align="center"><img src="docs/qa/readme-v0.14.12/media-review-expanded-api35.png" width="300" alt="原文件核对与关闭操作"><br><sub>原文件核对</sub></td>
   </tr>
 </table>
