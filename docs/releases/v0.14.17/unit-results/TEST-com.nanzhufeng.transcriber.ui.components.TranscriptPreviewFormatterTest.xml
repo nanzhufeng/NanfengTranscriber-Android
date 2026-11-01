@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.nanzhufeng.transcriber.ui.components.TranscriptPreviewFormatterTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-29T02:48:57" hostname="nanzhufengs-MacBook-Pro-2.local" time="0.001">
+  <properties/>
+  <testcase name="预览压缩换行和重复空格" classname="com.nanzhufeng.transcriber.ui.components.TranscriptPreviewFormatterTest" time="0.001"/>
+  <testcase name="空结果显示诚实占位" classname="com.nanzhufeng.transcriber.ui.components.TranscriptPreviewFormatterTest" time="0.0"/>
+  <testcase name="超长预览保留长度并显示省略号" classname="com.nanzhufeng.transcriber.ui.components.TranscriptPreviewFormatterTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.nanzhufeng.transcriber.data.media.EmbeddedSubtitleParserTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-10-29T02:48:56" hostname="nanzhufengs-MacBook-Pro-2.local" time="0.019">
+  <properties/>
+  <testcase name="tx3g removes length prefix and keeps mixed Chinese English text" classname="com.nanzhufeng.transcriber.data.media.EmbeddedSubtitleParserTest" time="0.018"/>
+  <testcase name="subtitle control lines and markup are removed" classname="com.nanzhufeng.transcriber.data.media.EmbeddedSubtitleParserTest" time="0.0"/>
+  <testcase name="mp4 webvtt reads payl box" classname="com.nanzhufeng.transcriber.data.media.EmbeddedSubtitleParserTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

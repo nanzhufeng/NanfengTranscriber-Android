@@ -1,0 +1,10 @@
+2724a4c11818955a7c76a3e32929b8856c5264128b1b0c12eb2427115e700b75  app/src/main/java/com/nanzhufeng/transcriber/ui/components/SettingsPageHeader.kt
+9ff4e9bbf3599385b9a9131c1634adab040a6d1345aaf60f9edeceb6b5aba7ab  app/src/main/java/com/nanzhufeng/transcriber/ui/components/WorkbenchComponents.kt
+53a97ee1e625f9b5070bd8d72cbfaae5fd51a618241678c016078b1b6276e806  app/src/main/java/com/nanzhufeng/transcriber/ui/components/TopStatusIsland.kt
+1b3427c95a9b890ab54ebfb1f5a3f04a192478f4b59649941bf6ca7ff8ae8e10  app/src/main/java/com/nanzhufeng/transcriber/ui/screens/SettingsScreen.kt
+837c9ac3e1600288b8a2be9d02194917ea917c937ef92a84b059c66e13a4553f  app/src/main/java/com/nanzhufeng/transcriber/ui/screens/AsrInvocationHistoryScreen.kt
+65d0545b02f12d5cc0a73606351b8e1f0c501ce560cea7237c2360282f5f8f4a  app/src/main/java/com/nanzhufeng/transcriber/ui/screens/HomeScreen.kt
+a13daeaadb2dc7c401f6645b3ebab5571ba88c53dce0b448e05a62609f93c702  app/src/main/java/com/nanzhufeng/transcriber/ui/screens/HistoryScreen.kt
+176de7a941f2d0336da62dd1eaf59c242194c52160eab69e9b9dc0c931436bab  app/src/main/java/com/nanzhufeng/transcriber/ui/theme/Theme.kt
+04aae9afa9c110fcd397dcfdb655e93433b41808c6be6a878a56656c325d61fa  app/src/main/java/com/nanzhufeng/transcriber/ui/NanfengTranscriberApp.kt
+c11f24221b2c1e43ee771b41461c67a8f407b3bd644b564714c6e351b70ad8da  app/src/main/java/com/nanzhufeng/transcriber/service/TaskIslandOverlay.kt

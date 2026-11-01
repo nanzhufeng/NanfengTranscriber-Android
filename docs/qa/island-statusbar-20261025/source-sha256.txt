@@ -1,0 +1,3 @@
+86f011d02ab7c9c80d64593f996b9750c867b732849e79503684d9dc3c96c741  app/src/main/java/com/nanzhufeng/transcriber/service/TaskIslandOverlay.kt
+254a468a0f1987a005cebd103cc329bd9f468f319ebe8801ab15c24d2a7c8cfd  app/src/test/java/com/nanzhufeng/transcriber/domain/task/IslandDisplayControllerTest.kt
+23b52ba6e79541cf6848dbff3adbf2fcd185053fb5503126a0672d0e5f2f8fd0  scripts/verify_contract_checkpoint.rb

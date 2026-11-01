@@ -41,7 +41,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -261,8 +260,6 @@ private fun WorkbenchShell(
         ) {
             Row(
                 modifier = Modifier.widthIn(max = 720.dp).fillMaxWidth()
-                    .shadow(6.dp, RoundedCornerShape(32.dp),
-                        ambientColor = Color(0x12000000), spotColor = Color(0x0A000000))
                     .clip(RoundedCornerShape(32.dp)).background(Color.White).padding(3.dp),
             ) {
                 WorkbenchDestination.entries.forEach { item ->

@@ -1,0 +1,17 @@
+Verifies
+Verified using v1 scheme (JAR signing): false
+Verified using v2 scheme (APK Signature Scheme v2): false
+Verified using v3 scheme (APK Signature Scheme v3): true
+Verified using v3.1 scheme (APK Signature Scheme v3.1): false
+Verified using v4 scheme (APK Signature Scheme v4): false
+Verified for SourceStamp: false
+Number of signers: 1
+Signer #1 certificate DN: CN=Nanfeng Transcriber, O=Nanzhufeng, C=CN
+Signer #1 certificate SHA-256 digest: ee95f8d726b8fb85f15d0eb26d385505cb20a22cf1d749ec3e4327d7ee783174
+Signer #1 certificate SHA-1 digest: 790bdab293163c75a2483658595908d99cb1f7ef
+Signer #1 certificate MD5 digest: 9e503b4cfa7abfda5e39e4cb52bbe51e
+Signer #1 key algorithm: RSA
+Signer #1 key size (bits): 4096
+Signer #1 public key SHA-256 digest: 811385cb46b5f5e6495fd68948b3522ea462d8a1c77bc93fd0274da00afad50e
+Signer #1 public key SHA-1 digest: 2207ea6e32cea318139854637d00f9e0f54f69d4
+Signer #1 public key MD5 digest: 4adfb45465c83d40d8e65c3b54c4e67c

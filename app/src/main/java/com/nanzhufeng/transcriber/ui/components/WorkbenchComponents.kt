@@ -1,6 +1,17 @@
 package com.nanzhufeng.transcriber.ui.components
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupPositionProvider
+import androidx.compose.ui.window.PopupProperties
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,6 +37,12 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextFieldDefaults
+import com.nanzhufeng.transcriber.ui.theme.WorkbenchControlBackground
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogWindowProvider
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -86,7 +103,7 @@ fun WorkbenchCard(
     Card(
         modifier = modifier,
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         shape = RoundedCornerShape(18.dp),
     ) {
         Column(
@@ -102,7 +119,7 @@ fun SubtleActionButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    shape: Shape = RoundedCornerShape(14.dp),
+    shape: Shape = RoundedCornerShape(percent = 50),
     contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
     content: @Composable RowScope.() -> Unit,
 ) {
@@ -333,3 +350,94 @@ fun formatDuration(millis: Long): String {
 
 fun formatDateTime(epochMillis: Long): String =
     SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.SIMPLIFIED_CHINESE).format(Date(epochMillis))
+
+/** 输入与选择统一以实色表面分层，聚焦时也不恢复模块线框。 */
+@Composable
+fun workbenchTextFieldColors(containerColor: Color = WorkbenchControlBackground) = TextFieldDefaults.colors(
+    focusedContainerColor = containerColor,
+    unfocusedContainerColor = containerColor,
+    disabledContainerColor = containerColor,
+    focusedIndicatorColor = Color.Transparent,
+    unfocusedIndicatorColor = Color.Transparent,
+    disabledIndicatorColor = Color.Transparent,
+)
+
+/** 所有应用菜单共用零阴影表面；按锚点和窗口边界放置，不另画边框。 */
+@Composable
+fun WorkbenchDropdownMenu(
+    expanded: Boolean,
+    onDismissRequest: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    if (!expanded) return
+    Popup(
+        popupPositionProvider = object : PopupPositionProvider {
+            override fun calculatePosition(
+                anchorBounds: IntRect,
+                windowSize: IntSize,
+                layoutDirection: LayoutDirection,
+                popupContentSize: IntSize,
+            ): IntOffset {
+                val start = if (layoutDirection == LayoutDirection.Ltr) anchorBounds.left
+                    else anchorBounds.right - popupContentSize.width
+                val below = anchorBounds.bottom
+                val top = if (below + popupContentSize.height <= windowSize.height) below
+                    else anchorBounds.top - popupContentSize.height
+                return IntOffset(
+                    start.coerceIn(0, (windowSize.width - popupContentSize.width).coerceAtLeast(0)),
+                    top.coerceIn(0, (windowSize.height - popupContentSize.height).coerceAtLeast(0)),
+                )
+            }
+        },
+        onDismissRequest = onDismissRequest,
+        properties = PopupProperties(focusable = true),
+    ) {
+        Surface(shape = RoundedCornerShape(18.dp), color = Color.White, shadowElevation = 0.dp) {
+            Column(
+                modifier = Modifier.widthIn(min = 220.dp, max = 360.dp).heightIn(max = 360.dp)
+                    .verticalScroll(rememberScrollState()).padding(vertical = 8.dp),
+                content = content,
+            )
+        }
+    }
+}
+
+/** 白色模态卡：不绘制描边/阴影，原生窗口负责遮罩和外部/返回关闭。 */
+@Composable
+fun WorkbenchAlertDialog(
+    onDismissRequest: () -> Unit,
+    confirmButton: @Composable () -> Unit,
+    containerColor: Color = Color.White,
+    title: @Composable (() -> Unit)? = null,
+    text: @Composable (() -> Unit)? = null,
+    dismissButton: @Composable (() -> Unit)? = null,
+) {
+    Dialog(onDismissRequest = onDismissRequest) {
+        val dialogView = LocalView.current
+        SideEffect {
+            (dialogView.parent as? DialogWindowProvider)?.window?.decorView?.elevation = 0f
+            dialogView.elevation = 0f
+        }
+        Surface(shape = RoundedCornerShape(24.dp), color = containerColor, shadowElevation = 0.dp) {
+            Column(
+                modifier = Modifier.fillMaxWidth().heightIn(max = 680.dp)
+                    .verticalScroll(rememberScrollState()).padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                title?.let {
+                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        androidx.compose.runtime.CompositionLocalProvider(
+                            androidx.compose.material3.LocalTextStyle provides MaterialTheme.typography.titleLarge,
+                            content = it,
+                        )
+                    }
+                }
+                text?.invoke()
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    dismissButton?.invoke()
+                    confirmButton()
+                }
+            }
+        }
+    }
+}

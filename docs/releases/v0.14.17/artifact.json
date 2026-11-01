@@ -1,0 +1,22 @@
+{
+  "versionName": "0.14.17",
+  "versionCode": 32,
+  "package": "com.nanzhufeng.transcriber",
+  "artifact": "../交付产物/南枫转写-Android/v0.14.17/南枫转写.apk",
+  "bytes": 106950608,
+  "sha256": "068cd1d903a9efcec7294623b2d214cfb808d88c177c9aedce283d00aee868f9",
+  "certificate_sha256": "ee95f8d726b8fb85f15d0eb26d385505cb20a22cf1d749ec3e4327d7ee783174",
+  "debuggable": false,
+  "source_file_count": 141,
+  "tests": {
+    "tests": 104,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "lint": {
+    "Warning": 28,
+    "Information": 6
+  },
+  "installation": "PASS 2026-10-29: OPPO PKH120 0.14.16 (31) -> 0.14.17 (32), same certificate, installed APK bytes equal frozen APK; no automatic launch or accessibility changes"
+}

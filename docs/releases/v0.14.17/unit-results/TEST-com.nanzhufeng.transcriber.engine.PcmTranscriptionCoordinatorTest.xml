@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.nanzhufeng.transcriber.engine.PcmTranscriptionCoordinatorTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-10-29T02:48:57" hostname="nanzhufengs-MacBook-Pro-2.local" time="0.006">
+  <properties/>
+  <testcase name="aggregates internal provider segments into one file level usage" classname="com.nanzhufeng.transcriber.engine.PcmTranscriptionCoordinatorTest" time="0.003"/>
+  <testcase name="preserves engine failure code and safe message" classname="com.nanzhufeng.transcriber.engine.PcmTranscriptionCoordinatorTest" time="0.003"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

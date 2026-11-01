@@ -39,8 +39,8 @@ android {
         applicationId = "com.nanzhufeng.transcriber"
         minSdk = 29
         targetSdk = 35
-        versionCode = 27
-        versionName = "0.14.12"
+        versionCode = 32
+        versionName = "0.14.17"
         buildConfigField("String", "BUILD_TIME", "\"$buildTimestamp\"")
         testApplicationId = "com.nanzhufeng.transcriber.codextest"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

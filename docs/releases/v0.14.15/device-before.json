@@ -1,0 +1,11 @@
+{
+  "versionName": "0.14.14",
+  "versionCode": "29 minSdk=29 targetSdk=35",
+  "firstInstallTime": "2026-07-20 01:09:40",
+  "lastUpdateTime": "2026-10-20 22:47:15",
+  "dataDir": "/data/user/0/com.nanzhufeng.transcriber",
+  "appId": "10592",
+  "debuggable": false,
+  "accessibility_services_sha256": "119fdd4d96cfc8a1117917a612043648bdbed1198bcfc308cd8f5e01cd080e3c",
+  "apk_path": "/data/app/~~IZgcL7NjBgnMxdVOqX-GWg==/com.nanzhufeng.transcriber-66ccb7jOADCXVrTX6k8p1g==/base.apk"
+}

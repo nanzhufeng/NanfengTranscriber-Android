@@ -47,20 +47,16 @@ import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.OpenInFull
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.TextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -97,6 +93,10 @@ import com.nanzhufeng.transcriber.ui.TranscriptionUiState
 import com.nanzhufeng.transcriber.ui.theme.TranscriptPreviewOrange
 import com.nanzhufeng.transcriber.ui.components.TaskMediaPreview
 import com.nanzhufeng.transcriber.ui.components.SubtleActionButton
+import com.nanzhufeng.transcriber.ui.components.workbenchTextFieldColors
+import com.nanzhufeng.transcriber.ui.components.WorkbenchPageHeader
+import com.nanzhufeng.transcriber.ui.components.WorkbenchDropdownMenu
+import com.nanzhufeng.transcriber.ui.components.WorkbenchAlertDialog
 import com.nanzhufeng.transcriber.ui.components.WorkbenchCard
 import com.nanzhufeng.transcriber.ui.components.formatDateTime
 import com.nanzhufeng.transcriber.ui.components.formatDuration
@@ -163,14 +163,10 @@ fun HistoryScreen(
             horizontalArrangement = Arrangement.spacedBy(if (expanded) 12.dp else 14.dp),
         ) {
             item(span = { GridItemSpan(maxLineSpan) }) {
-                Text(
-                    text = "历史",
-                    style = if (expanded) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                )
+                WorkbenchPageHeader(title = "历史")
             }
             item(span = { GridItemSpan(maxLineSpan) }) {
-                OutlinedTextField(
+                TextField(
                     value = query,
                     onValueChange = { query = it },
                     modifier = Modifier.fillMaxWidth(),
@@ -178,10 +174,8 @@ fun HistoryScreen(
                     leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
                     label = { Text("搜索文件名或转写文字") },
                     shape = RoundedCornerShape(percent = 50),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = Color.White,
-                        unfocusedContainerColor = Color.White,
-                        disabledContainerColor = Color.White,
+                    colors = workbenchTextFieldColors(
+                        containerColor = Color.White,
                     ),
                 )
             }
@@ -267,7 +261,8 @@ fun HistoryScreen(
     }
 
     pendingDeleteId?.let { taskId ->
-        AlertDialog(
+        WorkbenchAlertDialog(
+            containerColor = Color.White,
             onDismissRequest = { pendingDeleteId = null },
             title = { Text("删除这条历史记录？") },
             text = { Text("会删除 App 内保存的转写结果和记录；原音视频、模型缓存以及已经导出的文件不受影响。") },
@@ -285,7 +280,8 @@ fun HistoryScreen(
     }
 
     if (pendingBulkDeleteIds.isNotEmpty()) {
-        AlertDialog(
+        WorkbenchAlertDialog(
+            containerColor = Color.White,
             onDismissRequest = { pendingBulkDeleteIds = emptySet() },
             title = { Text("删除 ${pendingBulkDeleteIds.size} 条历史记录？") },
             text = { Text("只删除 App 内的转写结果和历史记录；原音视频、模型缓存及已导出文件不受影响。") },
@@ -305,7 +301,8 @@ fun HistoryScreen(
     }
 
     if (confirmCleanInvalid) {
-        AlertDialog(
+        WorkbenchAlertDialog(
+            containerColor = Color.White,
             onDismissRequest = { confirmCleanInvalid = false },
             title = { Text("清理失效历史？") },
             text = { Text("仅删除转写结果文件已不存在的历史记录；原音视频、模型缓存和导出文件均不会受到影响。") },
@@ -345,12 +342,13 @@ private fun HistoryActionBar(
                 onClick = { periodMenuExpanded = true },
                 label = { Text(period.label) },
                 border = null,
+                shape = RoundedCornerShape(percent = 50),
                 colors = FilterChipDefaults.filterChipColors(
                     selectedContainerColor = MaterialTheme.colorScheme.primary,
                     selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
                 ),
             )
-            DropdownMenu(expanded = periodMenuExpanded, onDismissRequest = { periodMenuExpanded = false }) {
+            WorkbenchDropdownMenu(expanded = periodMenuExpanded, onDismissRequest = { periodMenuExpanded = false }) {
                 HistoryPeriod.entries.forEach { option ->
                     DropdownMenuItem(
                         text = { Text(option.label) },
@@ -473,7 +471,7 @@ private fun CompletedTimelineItem(
                             ) {
                                 Icon(Icons.Outlined.MoreVert, contentDescription = "更多操作", modifier = Modifier.size(19.dp))
                             }
-                            DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                            WorkbenchDropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                                 task.technicalDetail?.takeIf(String::isNotBlank)?.let { detail ->
                                     DropdownMenuItem(
                                         text = { Text("转写信息") },
@@ -556,7 +554,8 @@ private fun CompletedTimelineItem(
         }
     }
     if (showTranscriptionInfo) {
-        AlertDialog(
+        WorkbenchAlertDialog(
+            containerColor = Color.White,
             onDismissRequest = { showTranscriptionInfo = false },
             title = { Text("转写信息") },
             text = {
@@ -619,25 +618,14 @@ fun HistoryMediaReviewPane(
             modifier = Modifier.fillMaxSize().statusBarsPadding().padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("原文件核对", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        task.sourceDisplayName,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                IconButton(onClick = onDismiss) {
-                    Icon(
-                        Icons.Outlined.Close,
-                        contentDescription = "关闭原文件核对",
-                    )
-                }
-            }
+            WorkbenchPageHeader(title = "原文件核对", onClose = onDismiss, closeLabel = "关闭原文件核对")
+            Text(
+                task.sourceDisplayName,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
             WorkbenchCard(modifier = Modifier.fillMaxWidth().weight(1f)) {
                 when {
                     !sourceResolved -> Box(
@@ -683,7 +671,7 @@ fun HistoryMediaReviewPane(
                         }
                         playbackError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                         Spacer(Modifier.height(4.dp))
-                        HorizontalDivider()
+                        Spacer(Modifier.height(8.dp))
                         TranscriptEditorPanel(
                             task = task,
                             state = state,
@@ -907,28 +895,16 @@ private fun HistoryImageReviewPane(
                 modifier = Modifier.align(Alignment.Center),
                 color = Color.White,
             )
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.TopCenter)
-                    .background(Color.Black.copy(alpha = 0.52f))
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            Box(
+                modifier = Modifier.fillMaxWidth().align(Alignment.TopCenter)
+                    .background(Color.Black.copy(alpha = 0.52f)).padding(horizontal = 16.dp, vertical = 8.dp),
             ) {
-                Text(
-                    title,
-                    modifier = Modifier.weight(1f),
-                    color = Color.White,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                WorkbenchPageHeader(
+                    title = title,
+                    onClose = onDismiss,
+                    closeLabel = "关闭原文件核对",
+                    titleColor = Color.White,
                 )
-                IconButton(onClick = onDismiss) {
-                    Icon(
-                        Icons.Outlined.Close,
-                        contentDescription = "关闭原文件核对",
-                        tint = Color.White,
-                    )
-                }
             }
         }
     }
@@ -1056,34 +1032,24 @@ private fun HistoryResultPane(
 
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = Color.White,
+        color = MaterialTheme.colorScheme.background,
         tonalElevation = 0.dp,
     ) {
         Column(
             modifier = Modifier.fillMaxSize().padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("转写结果", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        task.sourceDisplayName,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                IconButton(onClick = onDismiss) {
-                    Icon(
-                        Icons.Outlined.Close,
-                        contentDescription = "关闭转写结果",
-                    )
-                }
-            }
-            HorizontalDivider()
-            TranscriptEditorPanel(
+            WorkbenchPageHeader(title = "转写结果", onClose = onDismiss, closeLabel = "关闭转写结果")
+            Text(
+                task.sourceDisplayName,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.height(8.dp))
+            WorkbenchCard(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                TranscriptEditorPanel(
                 task = task,
                 state = state,
                 lastExportFormat = lastExportFormat,
@@ -1095,6 +1061,7 @@ private fun HistoryResultPane(
                 modifier = Modifier.fillMaxWidth().weight(1f),
                 fillAvailableHeight = true,
             )
+            }
         }
     }
 }
@@ -1134,7 +1101,7 @@ private fun TranscriptEditorPanel(
                 Text(if (state.isSavingTranscript) "保存中" else "保存")
             }
         }
-        OutlinedTextField(
+        TextField(
             value = requireNotNull(state.transcriptText),
             onValueChange = onTranscriptDraftChanged,
             readOnly = state.isSavingTranscript,
@@ -1143,13 +1110,8 @@ private fun TranscriptEditorPanel(
             } else {
                 Modifier.fillMaxWidth().heightIn(min = 240.dp, max = 460.dp)
             },
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = Color(0xFFF4F5F4),
-                unfocusedContainerColor = Color(0xFFF4F5F4),
-                disabledContainerColor = Color(0xFFF4F5F4),
-                focusedBorderColor = Color.Transparent,
-                unfocusedBorderColor = Color.Transparent,
-                disabledBorderColor = Color.Transparent,
+            colors = workbenchTextFieldColors(
+                containerColor = Color(0xFFF0F1F3),
             ),
         )
         Row(
@@ -1180,7 +1142,7 @@ private fun TranscriptEditorPanel(
                         )
                     }
                 }
-                DropdownMenu(
+                WorkbenchDropdownMenu(
                     expanded = exportFormatMenuExpanded,
                     onDismissRequest = { exportFormatMenuExpanded = false },
                 ) {

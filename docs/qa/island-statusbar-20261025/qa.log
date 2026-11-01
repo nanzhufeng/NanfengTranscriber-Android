@@ -1,0 +1,7 @@
+PASS outer-compact (266, 5, 873, 140)
+PASS outer-expanded (221, 5, 919, 596)
+PASS outer-unknown-large (266, 5, 873, 140)
+PASS inner-compact (820, 154, 1427, 286)
+PASS inner-expanded (682, 154, 1566, 769)
+PASS outer-expanded-after-fold (221, 5, 919, 596)
+PASS cancel callback closes QA overlay; no real task or paid service

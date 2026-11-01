@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.nanzhufeng.transcriber.engine.DashScopeFileTranscriptionEngineTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-10-29T02:48:57" hostname="nanzhufengs-MacBook-Pro-2.local" time="0.349">
+  <properties/>
+  <testcase name="bothModesUploadSubmitPollAndReadTimestampsUsingTheExistingKey" classname="com.nanzhufeng.transcriber.engine.DashScopeFileTranscriptionEngineTest" time="0.119"/>
+  <testcase name="retainedNoSpeechFailureCanBeRecoveredLocallyWithoutResubmission" classname="com.nanzhufeng.transcriber.engine.DashScopeFileTranscriptionEngineTest" time="0.032"/>
+  <testcase name="terminalFailureRetainsSafeProviderEvidenceForDiagnosis" classname="com.nanzhufeng.transcriber.engine.DashScopeFileTranscriptionEngineTest" time="0.029"/>
+  <testcase name="processRestartQueriesTheSavedTaskRatherThanUploadingOrSubmittingAgain" classname="com.nanzhufeng.transcriber.engine.DashScopeFileTranscriptionEngineTest" time="0.048"/>
+  <testcase name="ambiguousSubmissionCannotBeAutomaticallyResubmitted" classname="com.nanzhufeng.transcriber.engine.DashScopeFileTranscriptionEngineTest" time="0.029"/>
+  <testcase name="paraformerNoSpeechTailCompletesAndSurvivesRestartWithoutASecondRequest" classname="com.nanzhufeng.transcriber.engine.DashScopeFileTranscriptionEngineTest" time="0.047"/>
+  <testcase name="noSpeechTailPreservesEarlierTextAndCommitsTheWholeAudioCheckpoint" classname="com.nanzhufeng.transcriber.engine.DashScopeFileTranscriptionEngineTest" time="0.044"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

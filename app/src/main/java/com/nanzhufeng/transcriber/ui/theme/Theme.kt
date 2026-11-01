@@ -13,11 +13,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+/** 设置及其子页共用中性表面，皮肤仅改变小面积选中反馈。 */
+val WorkbenchPageBackground = Color(0xFFF0F1F3)
+val SettingsPageBackground = WorkbenchPageBackground
+val WorkbenchControlBackground = Color(0xFFF0F1F3)
+
 val ActionOrange = Color(0xFFFF5A1F)
 val TranscriptPreviewOrange = Color(0xFF9B6049)
 val ParameterPurple = Color(0xFF7552B8)
 val AttentionOchre = Color(0xFFB96812)
-val WorkbenchBorder = Color(0xFFD7DED9)
 val SecondaryText = Color(0xFF5F6C64)
 val FailureRed = Color(0xFFC8161D)
 
@@ -85,10 +89,10 @@ private fun workbenchColors(skinId: String) = (SkinPalettes[skinId] ?: SkinPalet
     onSecondary = Color.White,
     tertiary = ParameterPurple,
     onTertiary = Color.White,
-    background = palette.background,
+    background = WorkbenchPageBackground,
     onBackground = palette.onBackground,
-    surface = palette.surface,
-    surfaceTint = palette.surface,
+    surface = Color.White,
+    surfaceTint = Color.Transparent,
     onSurface = palette.onBackground,
     surfaceVariant = palette.primaryContainer,
     onSurfaceVariant = palette.onSurfaceVariant,
@@ -101,20 +105,20 @@ private val WorkbenchTypography = Typography(
     headlineMedium = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Bold,
-        fontSize = 28.sp,
-        lineHeight = 34.sp,
+        fontSize = 24.sp,
+        lineHeight = 30.sp,
     ),
     headlineSmall = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Bold,
-        fontSize = 24.sp,
-        lineHeight = 30.sp,
+        fontSize = 22.sp,
+        lineHeight = 28.sp,
     ),
     titleLarge = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.SemiBold,
-        fontSize = 20.sp,
-        lineHeight = 26.sp,
+        fontSize = 18.sp,
+        lineHeight = 24.sp,
     ),
     titleMedium = TextStyle(
         fontFamily = FontFamily.SansSerif,

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.nanzhufeng.transcriber.engine.DashScopeFileTranscriptionClientTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-10-29T02:48:57" hostname="nanzhufengs-MacBook-Pro-2.local" time="0.069">
+  <properties/>
+  <testcase name="submitsBothModelsAsAsyncFileTasksWithRequiredParameters" classname="com.nanzhufeng.transcriber.engine.DashScopeFileTranscriptionClientTest" time="0.018"/>
+  <testcase name="refusesInvalidTimesInsteadOfExportingBrokenSubtitles" classname="com.nanzhufeng.transcriber.engine.DashScopeFileTranscriptionClientTest" time="0.001"/>
+  <testcase name="rejectsTaskMismatchAndUntrustedResultHost" classname="com.nanzhufeng.transcriber.engine.DashScopeFileTranscriptionClientTest" time="0.012"/>
+  <testcase name="parsesSentenceTimestampsAndProviderUsageWithoutInventingTokens" classname="com.nanzhufeng.transcriber.engine.DashScopeFileTranscriptionClientTest" time="0.0"/>
+  <testcase name="authenticationErrorsNeverExposeServiceResponse" classname="com.nanzhufeng.transcriber.engine.DashScopeFileTranscriptionClientTest" time="0.006"/>
+  <testcase name="pendingAndRunningAreNotCompletedTranscripts" classname="com.nanzhufeng.transcriber.engine.DashScopeFileTranscriptionClientTest" time="0.016"/>
+  <testcase name="overallSuccessDoesNotHideFailedFileSubtask" classname="com.nanzhufeng.transcriber.engine.DashScopeFileTranscriptionClientTest" time="0.007"/>
+  <testcase name="readyStateRetainsOnlyReportedUsageAndValidResultLocation" classname="com.nanzhufeng.transcriber.engine.DashScopeFileTranscriptionClientTest" time="0.007"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -20,15 +20,18 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.nanzhufeng.transcriber.ui.components.SectionHeading
 import com.nanzhufeng.transcriber.ui.components.SubtleActionButton
 import com.nanzhufeng.transcriber.ui.components.WorkbenchCard
+import com.nanzhufeng.transcriber.service.IslandTopmostService
 
 @Composable
 internal fun BackgroundIslandSettingsCard(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val owner = LocalLifecycleOwner.current
     var overlayAllowed by remember { mutableStateOf(Settings.canDrawOverlays(context)) }
+    var topmostEnabled by remember { mutableStateOf(IslandTopmostService.isEnabled(context)) }
     var error by remember { mutableStateOf<String?>(null) }
     val refresh = {
         overlayAllowed = Settings.canDrawOverlays(context)
+        topmostEnabled = IslandTopmostService.isEnabled(context)
     }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { refresh() }
     DisposableEffect(owner) {
@@ -42,10 +45,16 @@ internal fun BackgroundIslandSettingsCard(modifier: Modifier = Modifier) {
     WorkbenchCard(modifier = modifier.fillMaxWidth()) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             SectionHeading(title = "灵动岛")
-            Text(if (overlayAllowed) "顶部灵动岛：已授权" else "顶部灵动岛：待授权")
+            Text(if (topmostEnabled) "状态栏置顶：已开启" else "状态栏置顶：未开启")
+            Text("在系统无障碍中开启“南枫转写灵动岛置顶”。仅显示转写状态，不读取屏幕或执行手势；未开启时普通悬浮窗显示在状态栏下方。",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            SubtleActionButton(onClick = {
+                open(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            }, modifier = Modifier.fillMaxWidth()) { Text(if (topmostEnabled) "管理状态栏置顶" else "开启状态栏置顶") }
+            Text(if (overlayAllowed) "普通悬浮窗：已授权" else "普通悬浮窗：待授权")
             SubtleActionButton(onClick = {
                 open(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}")))
-            }, modifier = Modifier.fillMaxWidth()) { Text(if (overlayAllowed) "管理灵动岛权限" else "允许显示顶部灵动岛") }
+            }, modifier = Modifier.fillMaxWidth()) { Text(if (overlayAllowed) "管理普通悬浮窗" else "允许普通悬浮窗") }
             SubtleActionButton(onClick = { open(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)) }, modifier = Modifier.fillMaxWidth()) { Text("设置后台电池策略") }
             SubtleActionButton(onClick = {
                 open(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName))

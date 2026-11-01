@@ -1,0 +1,24 @@
+{
+  "package": "com.nanzhufeng.transcriber",
+  "versionName": "0.14.16",
+  "versionCode": 31,
+  "debuggable": false,
+  "certificate_sha256": "ee95f8d726b8fb85f15d0eb26d385505cb20a22cf1d749ec3e4327d7ee783174",
+  "size": 106932497,
+  "sha256": "473a37077738c776ed2961009c2a049bbc3e905aa604c8bea0b3ce0accf066ac",
+  "apk": "../交付产物/南枫转写-Android/v0.14.16/南枫转写.apk",
+  "verification": {
+    "tests": 103,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "timestamps": [
+      "2026-10-25T05:29:11",
+      "2026-10-25T05:29:12"
+    ],
+    "lint": {
+      "Warning": 27,
+      "Information": 6
+    }
+  }
+}

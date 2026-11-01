@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.nanzhufeng.transcriber.data.result.TranscriptDocumentStoreTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-10-29T02:48:56" hostname="nanzhufengs-MacBook-Pro-2.local" time="0.004">
+  <properties/>
+  <testcase name="completeDocumentRoundTripsAndPartFileIsNotLeftBehind" classname="com.nanzhufeng.transcriber.data.result.TranscriptDocumentStoreTest" time="0.004"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

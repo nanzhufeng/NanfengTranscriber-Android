@@ -1,0 +1,13 @@
+    flags=0x0
+    versionCode=28 minSdk=29 targetSdk=35
+    versionName=0.14.13
+    flags=[ HAS_CODE ALLOW_CLEAR_USER_DATA ALLOW_BACKUP KILL_AFTER_RESTORE ]
+    lastUpdateTime=2026-10-20 21:07:32
+      dataDir=/data/user/0/com.nanzhufeng.transcriber
+      firstInstallTime=2026-07-20 01:09:40
+        android.permission.POST_NOTIFICATIONS: granted=true, flags=[ USER_SET|USER_SENSITIVE_WHEN_GRANTED|USER_SENSITIVE_WHEN_DENIED]
+        android.permission.ACCESS_LOCAL_NETWORK: granted=true, flags=[ REVOKE_WHEN_REQUESTED|USER_SENSITIVE_WHEN_GRANTED|USER_SENSITIVE_WHEN_DENIED]
+      dataDir=null
+      firstInstallTime=1970-01-01 08:00:00
+        android.permission.POST_NOTIFICATIONS: granted=false, flags=[ USER_SENSITIVE_WHEN_GRANTED|USER_SENSITIVE_WHEN_DENIED]
+        android.permission.ACCESS_LOCAL_NETWORK: granted=true, flags=[ REVOKE_WHEN_REQUESTED|USER_SENSITIVE_WHEN_GRANTED|USER_SENSITIVE_WHEN_DENIED]

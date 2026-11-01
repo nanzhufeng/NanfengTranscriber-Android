@@ -1,0 +1,21 @@
+{
+  "result": "PASS",
+  "version_before": "0.14.16 (31)",
+  "version_after": "0.14.17 (32)",
+  "installed_sha256": "068cd1d903a9efcec7294623b2d214cfb808d88c177c9aedce283d00aee868f9",
+  "installed_bytes_equal_frozen_apk": true,
+  "unchanged_fields": [
+    "firstInstallTime",
+    "dataDir",
+    "appId",
+    "debuggable",
+    "accessibility_services_sha256",
+    "model"
+  ],
+  "uninstall_or_clear_data": false,
+  "automatic_launch": false,
+  "accessibility_settings_changed": false,
+  "private_database_read": false,
+  "business_ui_verification": "NOT RUN",
+  "device_temp_apk_removed": true
+}

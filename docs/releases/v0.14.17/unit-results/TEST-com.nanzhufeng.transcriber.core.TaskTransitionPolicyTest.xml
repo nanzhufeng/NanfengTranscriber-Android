@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.nanzhufeng.transcriber.core.TaskTransitionPolicyTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-29T02:48:56" hostname="nanzhufengs-MacBook-Pro-2.local" time="0.024">
+  <properties/>
+  <testcase name="preparingCanWaitForModelAfterSubtitleProbeMisses" classname="com.nanzhufeng.transcriber.core.TaskTransitionPolicyTest" time="0.021"/>
+  <testcase name="noSpeechIsRetryableButNeverCompleted" classname="com.nanzhufeng.transcriber.core.TaskTransitionPolicyTest" time="0.0"/>
+  <testcase name="terminalCompletedTaskCannotBeReopenedSilently" classname="com.nanzhufeng.transcriber.core.TaskTransitionPolicyTest" time="0.001"/>
+  <testcase name="cancelledAndFailedTasksCanBeSelectedAndRequeued" classname="com.nanzhufeng.transcriber.core.TaskTransitionPolicyTest" time="0.001"/>
+  <testcase name="normalPipelineRequiresExportBeforeCompleted" classname="com.nanzhufeng.transcriber.core.TaskTransitionPolicyTest" time="0.0"/>
+  <testcase name="interruptedTaskMustEnterExplicitRecovery" classname="com.nanzhufeng.transcriber.core.TaskTransitionPolicyTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

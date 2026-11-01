@@ -1,0 +1,1586 @@
+diff --git a/app/build.gradle.kts b/app/build.gradle.kts
+index a3de42d..c4ff634 100644
+--- a/app/build.gradle.kts
++++ b/app/build.gradle.kts
+@@ -39,8 +39,8 @@ android {
+         applicationId = "com.nanzhufeng.transcriber"
+         minSdk = 29
+         targetSdk = 35
+-        versionCode = 27
+-        versionName = "0.14.12"
++        versionCode = 28
++        versionName = "0.14.13"
+         buildConfigField("String", "BUILD_TIME", "\"$buildTimestamp\"")
+         testApplicationId = "com.nanzhufeng.transcriber.codextest"
+         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+diff --git a/app/src/main/java/com/nanzhufeng/transcriber/service/TaskIslandOverlay.kt b/app/src/main/java/com/nanzhufeng/transcriber/service/TaskIslandOverlay.kt
+index 7316988..4051999 100644
+--- a/app/src/main/java/com/nanzhufeng/transcriber/service/TaskIslandOverlay.kt
++++ b/app/src/main/java/com/nanzhufeng/transcriber/service/TaskIslandOverlay.kt
+@@ -66,7 +66,7 @@ class TaskIslandOverlay(
+             orientation = LinearLayout.VERTICAL
+             setPadding(dp(14), dp(10), dp(14), dp(10))
+             background = GradientDrawable().apply { setColor(Color.rgb(22, 29, 33)); cornerRadius = dp(24).toFloat() }
+-            elevation = dp(8).toFloat()
++            elevation = 0f
+             clipToOutline = true
+             contentDescription = "南枫转写灵动岛"
+         }
+diff --git a/app/src/main/java/com/nanzhufeng/transcriber/ui/NanfengTranscriberApp.kt b/app/src/main/java/com/nanzhufeng/transcriber/ui/NanfengTranscriberApp.kt
+index 06475eb..b3e7855 100644
+--- a/app/src/main/java/com/nanzhufeng/transcriber/ui/NanfengTranscriberApp.kt
++++ b/app/src/main/java/com/nanzhufeng/transcriber/ui/NanfengTranscriberApp.kt
+@@ -41,7 +41,6 @@ import androidx.compose.runtime.setValue
+ import androidx.compose.ui.Modifier
+ import androidx.compose.ui.Alignment
+ import androidx.compose.ui.draw.clip
+-import androidx.compose.ui.draw.shadow
+ import androidx.compose.ui.semantics.Role
+ import androidx.compose.ui.semantics.semantics
+ import androidx.compose.ui.semantics.stateDescription
+@@ -261,8 +260,6 @@ private fun WorkbenchShell(
+         ) {
+             Row(
+                 modifier = Modifier.widthIn(max = 720.dp).fillMaxWidth()
+-                    .shadow(6.dp, RoundedCornerShape(32.dp),
+-                        ambientColor = Color(0x12000000), spotColor = Color(0x0A000000))
+                     .clip(RoundedCornerShape(32.dp)).background(Color.White).padding(3.dp),
+             ) {
+                 WorkbenchDestination.entries.forEach { item ->
+diff --git a/app/src/main/java/com/nanzhufeng/transcriber/ui/components/SettingsPageHeader.kt b/app/src/main/java/com/nanzhufeng/transcriber/ui/components/SettingsPageHeader.kt
+new file mode 100644
+index 0000000..844200c
+--- /dev/null
++++ b/app/src/main/java/com/nanzhufeng/transcriber/ui/components/SettingsPageHeader.kt
+@@ -0,0 +1,56 @@
++package com.nanzhufeng.transcriber.ui.components
++
++import androidx.compose.foundation.layout.Box
++import androidx.compose.foundation.layout.fillMaxWidth
++import androidx.compose.foundation.layout.heightIn
++import androidx.compose.foundation.layout.padding
++import androidx.compose.material.icons.Icons
++import androidx.compose.material.icons.outlined.ChevronLeft
++import androidx.compose.material.icons.outlined.Close
++import androidx.compose.material3.Icon
++import androidx.compose.material3.IconButton
++import androidx.compose.material3.MaterialTheme
++import androidx.compose.material3.Text
++import androidx.compose.runtime.Composable
++import androidx.compose.ui.Alignment
++import androidx.compose.ui.Modifier
++import androidx.compose.ui.graphics.Color
++import androidx.compose.ui.text.font.FontWeight
++import androidx.compose.ui.text.style.TextAlign
++import androidx.compose.ui.unit.dp
++
++/** 两侧等量留位，返回按钮不影响标题相对于整个内容区居中。 */
++@Composable
++fun SettingsPageHeader(title: String, onBack: (() -> Unit)? = null) {
++    WorkbenchPageHeader(title = title, onBack = onBack)
++}
++
++@Composable
++fun WorkbenchPageHeader(
++    title: String,
++    onBack: (() -> Unit)? = null,
++    onClose: (() -> Unit)? = null,
++    closeLabel: String = "关闭",
++    titleColor: Color = Color(0xFF242424),
++) {
++    Box(Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
++        Text(
++            text = title,
++            modifier = Modifier.align(Alignment.Center).fillMaxWidth().padding(horizontal = 56.dp, vertical = 8.dp),
++            style = MaterialTheme.typography.headlineSmall,
++            fontWeight = FontWeight.Bold,
++            textAlign = TextAlign.Center,
++            color = titleColor,
++        )
++        if (onBack != null) {
++            IconButton(onClick = onBack, modifier = Modifier.align(Alignment.CenterStart)) {
++                Icon(Icons.Outlined.ChevronLeft, contentDescription = "返回设置", tint = Color(0xFF555555))
++            }
++        }
++        if (onClose != null) {
++            IconButton(onClick = onClose, modifier = Modifier.align(Alignment.CenterEnd)) {
++                Icon(Icons.Outlined.Close, contentDescription = closeLabel, tint = titleColor)
++            }
++        }
++    }
++}
+diff --git a/app/src/main/java/com/nanzhufeng/transcriber/ui/components/TopStatusIsland.kt b/app/src/main/java/com/nanzhufeng/transcriber/ui/components/TopStatusIsland.kt
+index 89fc5d3..70942bd 100644
+--- a/app/src/main/java/com/nanzhufeng/transcriber/ui/components/TopStatusIsland.kt
++++ b/app/src/main/java/com/nanzhufeng/transcriber/ui/components/TopStatusIsland.kt
+@@ -44,7 +44,7 @@ fun TopStatusIsland(
+         shape = RoundedCornerShape(999.dp),
+         color = MaterialTheme.colorScheme.inverseSurface,
+         contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+-        shadowElevation = 8.dp,
++        shadowElevation = 0.dp,
+     ) {
+         Row(
+             modifier = Modifier.defaultMinSize(minHeight = 44.dp).padding(horizontal = 16.dp, vertical = 10.dp),
+diff --git a/app/src/main/java/com/nanzhufeng/transcriber/ui/components/WorkbenchComponents.kt b/app/src/main/java/com/nanzhufeng/transcriber/ui/components/WorkbenchComponents.kt
+index e4613b7..db54d47 100644
+--- a/app/src/main/java/com/nanzhufeng/transcriber/ui/components/WorkbenchComponents.kt
++++ b/app/src/main/java/com/nanzhufeng/transcriber/ui/components/WorkbenchComponents.kt
+@@ -1,6 +1,17 @@
+ package com.nanzhufeng.transcriber.ui.components
+ 
+ import androidx.compose.foundation.Image
++import androidx.compose.foundation.rememberScrollState
++import androidx.compose.foundation.verticalScroll
++import androidx.compose.foundation.layout.heightIn
++import androidx.compose.foundation.layout.widthIn
++import androidx.compose.ui.unit.IntOffset
++import androidx.compose.ui.unit.IntRect
++import androidx.compose.ui.unit.IntSize
++import androidx.compose.ui.unit.LayoutDirection
++import androidx.compose.ui.window.Popup
++import androidx.compose.ui.window.PopupPositionProvider
++import androidx.compose.ui.window.PopupProperties
+ import androidx.compose.foundation.background
+ import androidx.compose.foundation.layout.Arrangement
+ import androidx.compose.foundation.layout.Box
+@@ -26,6 +37,12 @@ import androidx.compose.material3.LinearProgressIndicator
+ import androidx.compose.material3.MaterialTheme
+ import androidx.compose.material3.Surface
+ import androidx.compose.material3.Text
++import androidx.compose.material3.TextFieldDefaults
++import com.nanzhufeng.transcriber.ui.theme.WorkbenchControlBackground
++import androidx.compose.runtime.SideEffect
++import androidx.compose.ui.platform.LocalView
++import androidx.compose.ui.window.Dialog
++import androidx.compose.ui.window.DialogWindowProvider
+ import androidx.compose.runtime.Composable
+ import androidx.compose.ui.Alignment
+ import androidx.compose.ui.Modifier
+@@ -86,7 +103,7 @@ fun WorkbenchCard(
+     Card(
+         modifier = modifier,
+         colors = CardDefaults.cardColors(containerColor = Color.White),
+-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
++        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+         shape = RoundedCornerShape(18.dp),
+     ) {
+         Column(
+@@ -102,7 +119,7 @@ fun SubtleActionButton(
+     onClick: () -> Unit,
+     modifier: Modifier = Modifier,
+     enabled: Boolean = true,
+-    shape: Shape = RoundedCornerShape(14.dp),
++    shape: Shape = RoundedCornerShape(percent = 50),
+     contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
+     content: @Composable RowScope.() -> Unit,
+ ) {
+@@ -333,3 +350,94 @@ fun formatDuration(millis: Long): String {
+ 
+ fun formatDateTime(epochMillis: Long): String =
+     SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.SIMPLIFIED_CHINESE).format(Date(epochMillis))
++
++/** 输入与选择统一以实色表面分层，聚焦时也不恢复模块线框。 */
++@Composable
++fun workbenchTextFieldColors(containerColor: Color = WorkbenchControlBackground) = TextFieldDefaults.colors(
++    focusedContainerColor = containerColor,
++    unfocusedContainerColor = containerColor,
++    disabledContainerColor = containerColor,
++    focusedIndicatorColor = Color.Transparent,
++    unfocusedIndicatorColor = Color.Transparent,
++    disabledIndicatorColor = Color.Transparent,
++)
++
++/** 所有应用菜单共用零阴影表面；按锚点和窗口边界放置，不另画边框。 */
++@Composable
++fun WorkbenchDropdownMenu(
++    expanded: Boolean,
++    onDismissRequest: () -> Unit,
++    content: @Composable ColumnScope.() -> Unit,
++) {
++    if (!expanded) return
++    Popup(
++        popupPositionProvider = object : PopupPositionProvider {
++            override fun calculatePosition(
++                anchorBounds: IntRect,
++                windowSize: IntSize,
++                layoutDirection: LayoutDirection,
++                popupContentSize: IntSize,
++            ): IntOffset {
++                val start = if (layoutDirection == LayoutDirection.Ltr) anchorBounds.left
++                    else anchorBounds.right - popupContentSize.width
++                val below = anchorBounds.bottom
++                val top = if (below + popupContentSize.height <= windowSize.height) below
++                    else anchorBounds.top - popupContentSize.height
++                return IntOffset(
++                    start.coerceIn(0, (windowSize.width - popupContentSize.width).coerceAtLeast(0)),
++                    top.coerceIn(0, (windowSize.height - popupContentSize.height).coerceAtLeast(0)),
++                )
++            }
++        },
++        onDismissRequest = onDismissRequest,
++        properties = PopupProperties(focusable = true),
++    ) {
++        Surface(shape = RoundedCornerShape(18.dp), color = Color.White, shadowElevation = 0.dp) {
++            Column(
++                modifier = Modifier.widthIn(min = 220.dp, max = 360.dp).heightIn(max = 360.dp)
++                    .verticalScroll(rememberScrollState()).padding(vertical = 8.dp),
++                content = content,
++            )
++        }
++    }
++}
++
++/** 白色模态卡：不绘制描边/阴影，原生窗口负责遮罩和外部/返回关闭。 */
++@Composable
++fun WorkbenchAlertDialog(
++    onDismissRequest: () -> Unit,
++    confirmButton: @Composable () -> Unit,
++    containerColor: Color = Color.White,
++    title: @Composable (() -> Unit)? = null,
++    text: @Composable (() -> Unit)? = null,
++    dismissButton: @Composable (() -> Unit)? = null,
++) {
++    Dialog(onDismissRequest = onDismissRequest) {
++        val dialogView = LocalView.current
++        SideEffect {
++            (dialogView.parent as? DialogWindowProvider)?.window?.decorView?.elevation = 0f
++            dialogView.elevation = 0f
++        }
++        Surface(shape = RoundedCornerShape(24.dp), color = containerColor, shadowElevation = 0.dp) {
++            Column(
++                modifier = Modifier.fillMaxWidth().heightIn(max = 680.dp)
++                    .verticalScroll(rememberScrollState()).padding(24.dp),
++                verticalArrangement = Arrangement.spacedBy(16.dp),
++            ) {
++                title?.let {
++                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
++                        androidx.compose.runtime.CompositionLocalProvider(
++                            androidx.compose.material3.LocalTextStyle provides MaterialTheme.typography.titleLarge,
++                            content = it,
++                        )
++                    }
++                }
++                text?.invoke()
++                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
++                    dismissButton?.invoke()
++                    confirmButton()
++                }
++            }
++        }
++    }
++}
+diff --git a/app/src/main/java/com/nanzhufeng/transcriber/ui/screens/AsrInvocationHistoryScreen.kt b/app/src/main/java/com/nanzhufeng/transcriber/ui/screens/AsrInvocationHistoryScreen.kt
+index cad1644..af8e4ba 100644
+--- a/app/src/main/java/com/nanzhufeng/transcriber/ui/screens/AsrInvocationHistoryScreen.kt
++++ b/app/src/main/java/com/nanzhufeng/transcriber/ui/screens/AsrInvocationHistoryScreen.kt
+@@ -14,24 +14,24 @@ import androidx.compose.foundation.layout.size
+ import androidx.compose.foundation.lazy.LazyColumn
+ import androidx.compose.foundation.lazy.items
+ import androidx.compose.material.icons.Icons
+-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+ import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
+-import androidx.compose.material3.HorizontalDivider
+ import androidx.compose.material3.Icon
+-import androidx.compose.material3.IconButton
+ import androidx.compose.material3.MaterialTheme
+ import androidx.compose.material3.Surface
+ import androidx.compose.material3.Text
+ import androidx.compose.runtime.Composable
+ import androidx.compose.ui.Alignment
+ import androidx.compose.ui.Modifier
++import androidx.compose.ui.graphics.Color
+ import androidx.compose.ui.text.font.FontWeight
+ import androidx.compose.ui.unit.dp
+ import com.nanzhufeng.transcriber.domain.invocation.AsrInvocationRecord
+ import com.nanzhufeng.transcriber.domain.invocation.AsrInvocationStatus
+ import com.nanzhufeng.transcriber.ui.components.SectionHeading
++import com.nanzhufeng.transcriber.ui.components.SettingsPageHeader
+ import com.nanzhufeng.transcriber.ui.components.SubtleActionButton
+ import com.nanzhufeng.transcriber.ui.components.WorkbenchCard
++import com.nanzhufeng.transcriber.ui.theme.SettingsPageBackground
+ import java.text.SimpleDateFormat
+ import java.math.BigDecimal
+ import java.math.RoundingMode
+@@ -67,23 +67,11 @@ fun AsrInvocationHistoryScreen(records: List<AsrInvocationRecord>, onBack: () ->
+     BackHandler(onBack = onBack)
+     Surface(
+         modifier = Modifier.fillMaxSize(),
+-        color = MaterialTheme.colorScheme.background,
++        color = SettingsPageBackground,
+         tonalElevation = 0.dp,
+     ) {
+         Column(modifier = Modifier.fillMaxSize().padding(top = 14.dp)) {
+-            Row(
+-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+-                verticalAlignment = Alignment.CenterVertically,
+-            ) {
+-                Text("调用记录", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+-                Spacer(Modifier.weight(1f))
+-                IconButton(onClick = onBack) {
+-                    Icon(
+-                        Icons.AutoMirrored.Outlined.ArrowBack,
+-                        contentDescription = "返回设置",
+-                    )
+-                }
+-            }
++            SettingsPageHeader(title = "调用记录", onBack = onBack)
+             Text(
+                 "仅显示本机安全运行元数据。",
+                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+@@ -91,15 +79,19 @@ fun AsrInvocationHistoryScreen(records: List<AsrInvocationRecord>, onBack: () ->
+                 style = MaterialTheme.typography.bodySmall,
+             )
+             when {
+-                fileRecords.isEmpty() -> EmptyAsrInvocationLedger()
++                fileRecords.isEmpty() -> WorkbenchCard(
++                    modifier = Modifier.fillMaxWidth().padding(16.dp),
++                    contentPadding = PaddingValues(0.dp),
++                ) { EmptyAsrInvocationLedger() }
+                 else -> LazyColumn(
+                     modifier = Modifier.fillMaxSize(),
+                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp),
+-                    verticalArrangement = Arrangement.spacedBy(0.dp),
++                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                 ) {
+                     items(fileRecords, key = FileInvocationGroup::key) { record ->
+-                        AsrInvocationLedgerRow(record)
+-                        HorizontalDivider()
++                        WorkbenchCard(modifier = Modifier.fillMaxWidth()) {
++                            AsrInvocationLedgerRow(record)
++                        }
+                     }
+                 }
+             }
+diff --git a/app/src/main/java/com/nanzhufeng/transcriber/ui/screens/HistoryScreen.kt b/app/src/main/java/com/nanzhufeng/transcriber/ui/screens/HistoryScreen.kt
+index 46286cc..3454bfd 100644
+--- a/app/src/main/java/com/nanzhufeng/transcriber/ui/screens/HistoryScreen.kt
++++ b/app/src/main/java/com/nanzhufeng/transcriber/ui/screens/HistoryScreen.kt
+@@ -47,20 +47,16 @@ import androidx.compose.material.icons.outlined.MoreVert
+ import androidx.compose.material.icons.outlined.OpenInFull
+ import androidx.compose.material.icons.outlined.RadioButtonUnchecked
+ import androidx.compose.material.icons.outlined.Search
+-import androidx.compose.material3.AlertDialog
+ import androidx.compose.material3.Button
+ import androidx.compose.material3.ButtonDefaults
+ import androidx.compose.material3.CircularProgressIndicator
+-import androidx.compose.material3.DropdownMenu
+ import androidx.compose.material3.DropdownMenuItem
+ import androidx.compose.material3.FilterChip
+ import androidx.compose.material3.FilterChipDefaults
+-import androidx.compose.material3.HorizontalDivider
+ import androidx.compose.material3.Icon
+ import androidx.compose.material3.IconButton
+ import androidx.compose.material3.MaterialTheme
+-import androidx.compose.material3.OutlinedTextField
+-import androidx.compose.material3.OutlinedTextFieldDefaults
++import androidx.compose.material3.TextField
+ import androidx.compose.material3.Slider
+ import androidx.compose.material3.Surface
+ import androidx.compose.material3.Text
+@@ -97,6 +93,10 @@ import com.nanzhufeng.transcriber.ui.TranscriptionUiState
+ import com.nanzhufeng.transcriber.ui.theme.TranscriptPreviewOrange
+ import com.nanzhufeng.transcriber.ui.components.TaskMediaPreview
+ import com.nanzhufeng.transcriber.ui.components.SubtleActionButton
++import com.nanzhufeng.transcriber.ui.components.workbenchTextFieldColors
++import com.nanzhufeng.transcriber.ui.components.WorkbenchPageHeader
++import com.nanzhufeng.transcriber.ui.components.WorkbenchDropdownMenu
++import com.nanzhufeng.transcriber.ui.components.WorkbenchAlertDialog
+ import com.nanzhufeng.transcriber.ui.components.WorkbenchCard
+ import com.nanzhufeng.transcriber.ui.components.formatDateTime
+ import com.nanzhufeng.transcriber.ui.components.formatDuration
+@@ -163,14 +163,10 @@ fun HistoryScreen(
+             horizontalArrangement = Arrangement.spacedBy(if (expanded) 12.dp else 14.dp),
+         ) {
+             item(span = { GridItemSpan(maxLineSpan) }) {
+-                Text(
+-                    text = "历史",
+-                    style = if (expanded) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.headlineSmall,
+-                    fontWeight = FontWeight.Bold,
+-                )
++                WorkbenchPageHeader(title = "历史")
+             }
+             item(span = { GridItemSpan(maxLineSpan) }) {
+-                OutlinedTextField(
++                TextField(
+                     value = query,
+                     onValueChange = { query = it },
+                     modifier = Modifier.fillMaxWidth(),
+@@ -178,10 +174,8 @@ fun HistoryScreen(
+                     leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
+                     label = { Text("搜索文件名或转写文字") },
+                     shape = RoundedCornerShape(percent = 50),
+-                    colors = OutlinedTextFieldDefaults.colors(
+-                        focusedContainerColor = Color.White,
+-                        unfocusedContainerColor = Color.White,
+-                        disabledContainerColor = Color.White,
++                    colors = workbenchTextFieldColors(
++                        containerColor = Color.White,
+                     ),
+                 )
+             }
+@@ -267,7 +261,8 @@ fun HistoryScreen(
+     }
+ 
+     pendingDeleteId?.let { taskId ->
+-        AlertDialog(
++        WorkbenchAlertDialog(
++            containerColor = Color.White,
+             onDismissRequest = { pendingDeleteId = null },
+             title = { Text("删除这条历史记录？") },
+             text = { Text("会删除 App 内保存的转写结果和记录；原音视频、模型缓存以及已经导出的文件不受影响。") },
+@@ -285,7 +280,8 @@ fun HistoryScreen(
+     }
+ 
+     if (pendingBulkDeleteIds.isNotEmpty()) {
+-        AlertDialog(
++        WorkbenchAlertDialog(
++            containerColor = Color.White,
+             onDismissRequest = { pendingBulkDeleteIds = emptySet() },
+             title = { Text("删除 ${pendingBulkDeleteIds.size} 条历史记录？") },
+             text = { Text("只删除 App 内的转写结果和历史记录；原音视频、模型缓存及已导出文件不受影响。") },
+@@ -305,7 +301,8 @@ fun HistoryScreen(
+     }
+ 
+     if (confirmCleanInvalid) {
+-        AlertDialog(
++        WorkbenchAlertDialog(
++            containerColor = Color.White,
+             onDismissRequest = { confirmCleanInvalid = false },
+             title = { Text("清理失效历史？") },
+             text = { Text("仅删除转写结果文件已不存在的历史记录；原音视频、模型缓存和导出文件均不会受到影响。") },
+@@ -345,12 +342,13 @@ private fun HistoryActionBar(
+                 onClick = { periodMenuExpanded = true },
+                 label = { Text(period.label) },
+                 border = null,
++                shape = RoundedCornerShape(percent = 50),
+                 colors = FilterChipDefaults.filterChipColors(
+                     selectedContainerColor = MaterialTheme.colorScheme.primary,
+                     selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                 ),
+             )
+-            DropdownMenu(expanded = periodMenuExpanded, onDismissRequest = { periodMenuExpanded = false }) {
++            WorkbenchDropdownMenu(expanded = periodMenuExpanded, onDismissRequest = { periodMenuExpanded = false }) {
+                 HistoryPeriod.entries.forEach { option ->
+                     DropdownMenuItem(
+                         text = { Text(option.label) },
+@@ -473,7 +471,7 @@ private fun CompletedTimelineItem(
+                             ) {
+                                 Icon(Icons.Outlined.MoreVert, contentDescription = "更多操作", modifier = Modifier.size(19.dp))
+                             }
+-                            DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
++                            WorkbenchDropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                                 task.technicalDetail?.takeIf(String::isNotBlank)?.let { detail ->
+                                     DropdownMenuItem(
+                                         text = { Text("转写信息") },
+@@ -556,7 +554,8 @@ private fun CompletedTimelineItem(
+         }
+     }
+     if (showTranscriptionInfo) {
+-        AlertDialog(
++        WorkbenchAlertDialog(
++            containerColor = Color.White,
+             onDismissRequest = { showTranscriptionInfo = false },
+             title = { Text("转写信息") },
+             text = {
+@@ -619,25 +618,14 @@ fun HistoryMediaReviewPane(
+             modifier = Modifier.fillMaxSize().statusBarsPadding().padding(16.dp),
+             verticalArrangement = Arrangement.spacedBy(12.dp),
+         ) {
+-            Row(verticalAlignment = Alignment.CenterVertically) {
+-                Column(modifier = Modifier.weight(1f)) {
+-                    Text("原文件核对", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+-                    Spacer(Modifier.height(2.dp))
+-                    Text(
+-                        task.sourceDisplayName,
+-                        style = MaterialTheme.typography.bodyMedium,
+-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+-                        maxLines = 2,
+-                        overflow = TextOverflow.Ellipsis,
+-                    )
+-                }
+-                IconButton(onClick = onDismiss) {
+-                    Icon(
+-                        Icons.Outlined.Close,
+-                        contentDescription = "关闭原文件核对",
+-                    )
+-                }
+-            }
++            WorkbenchPageHeader(title = "原文件核对", onClose = onDismiss, closeLabel = "关闭原文件核对")
++            Text(
++                task.sourceDisplayName,
++                style = MaterialTheme.typography.bodyMedium,
++                color = MaterialTheme.colorScheme.onSurfaceVariant,
++                maxLines = 2,
++                overflow = TextOverflow.Ellipsis,
++            )
+             WorkbenchCard(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                 when {
+                     !sourceResolved -> Box(
+@@ -683,7 +671,7 @@ fun HistoryMediaReviewPane(
+                         }
+                         playbackError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                         Spacer(Modifier.height(4.dp))
+-                        HorizontalDivider()
++                        Spacer(Modifier.height(8.dp))
+                         TranscriptEditorPanel(
+                             task = task,
+                             state = state,
+@@ -907,28 +895,16 @@ private fun HistoryImageReviewPane(
+                 modifier = Modifier.align(Alignment.Center),
+                 color = Color.White,
+             )
+-            Row(
+-                modifier = Modifier
+-                    .fillMaxWidth()
+-                    .align(Alignment.TopCenter)
+-                    .background(Color.Black.copy(alpha = 0.52f))
+-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+-                verticalAlignment = Alignment.CenterVertically,
++            Box(
++                modifier = Modifier.fillMaxWidth().align(Alignment.TopCenter)
++                    .background(Color.Black.copy(alpha = 0.52f)).padding(horizontal = 16.dp, vertical = 8.dp),
+             ) {
+-                Text(
+-                    title,
+-                    modifier = Modifier.weight(1f),
+-                    color = Color.White,
+-                    maxLines = 1,
+-                    overflow = TextOverflow.Ellipsis,
++                WorkbenchPageHeader(
++                    title = title,
++                    onClose = onDismiss,
++                    closeLabel = "关闭原文件核对",
++                    titleColor = Color.White,
+                 )
+-                IconButton(onClick = onDismiss) {
+-                    Icon(
+-                        Icons.Outlined.Close,
+-                        contentDescription = "关闭原文件核对",
+-                        tint = Color.White,
+-                    )
+-                }
+             }
+         }
+     }
+@@ -1056,34 +1032,24 @@ private fun HistoryResultPane(
+ 
+     Surface(
+         modifier = Modifier.fillMaxSize(),
+-        color = Color.White,
++        color = MaterialTheme.colorScheme.background,
+         tonalElevation = 0.dp,
+     ) {
+         Column(
+             modifier = Modifier.fillMaxSize().padding(16.dp),
+             verticalArrangement = Arrangement.spacedBy(12.dp),
+         ) {
+-            Row(verticalAlignment = Alignment.CenterVertically) {
+-                Column(modifier = Modifier.weight(1f)) {
+-                    Text("转写结果", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+-                    Spacer(Modifier.height(2.dp))
+-                    Text(
+-                        task.sourceDisplayName,
+-                        style = MaterialTheme.typography.bodyMedium,
+-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+-                        maxLines = 2,
+-                        overflow = TextOverflow.Ellipsis,
+-                    )
+-                }
+-                IconButton(onClick = onDismiss) {
+-                    Icon(
+-                        Icons.Outlined.Close,
+-                        contentDescription = "关闭转写结果",
+-                    )
+-                }
+-            }
+-            HorizontalDivider()
+-            TranscriptEditorPanel(
++            WorkbenchPageHeader(title = "转写结果", onClose = onDismiss, closeLabel = "关闭转写结果")
++            Text(
++                task.sourceDisplayName,
++                style = MaterialTheme.typography.bodyMedium,
++                color = MaterialTheme.colorScheme.onSurfaceVariant,
++                maxLines = 2,
++                overflow = TextOverflow.Ellipsis,
++            )
++            Spacer(Modifier.height(8.dp))
++            WorkbenchCard(modifier = Modifier.fillMaxWidth().weight(1f)) {
++                TranscriptEditorPanel(
+                 task = task,
+                 state = state,
+                 lastExportFormat = lastExportFormat,
+@@ -1095,6 +1061,7 @@ private fun HistoryResultPane(
+                 modifier = Modifier.fillMaxWidth().weight(1f),
+                 fillAvailableHeight = true,
+             )
++            }
+         }
+     }
+ }
+@@ -1134,7 +1101,7 @@ private fun TranscriptEditorPanel(
+                 Text(if (state.isSavingTranscript) "保存中" else "保存")
+             }
+         }
+-        OutlinedTextField(
++        TextField(
+             value = requireNotNull(state.transcriptText),
+             onValueChange = onTranscriptDraftChanged,
+             readOnly = state.isSavingTranscript,
+@@ -1143,13 +1110,8 @@ private fun TranscriptEditorPanel(
+             } else {
+                 Modifier.fillMaxWidth().heightIn(min = 240.dp, max = 460.dp)
+             },
+-            colors = OutlinedTextFieldDefaults.colors(
+-                focusedContainerColor = Color(0xFFF4F5F4),
+-                unfocusedContainerColor = Color(0xFFF4F5F4),
+-                disabledContainerColor = Color(0xFFF4F5F4),
+-                focusedBorderColor = Color.Transparent,
+-                unfocusedBorderColor = Color.Transparent,
+-                disabledBorderColor = Color.Transparent,
++            colors = workbenchTextFieldColors(
++                containerColor = Color(0xFFF0F1F3),
+             ),
+         )
+         Row(
+@@ -1180,7 +1142,7 @@ private fun TranscriptEditorPanel(
+                         )
+                     }
+                 }
+-                DropdownMenu(
++                WorkbenchDropdownMenu(
+                     expanded = exportFormatMenuExpanded,
+                     onDismissRequest = { exportFormatMenuExpanded = false },
+                 ) {
+diff --git a/app/src/main/java/com/nanzhufeng/transcriber/ui/screens/HomeScreen.kt b/app/src/main/java/com/nanzhufeng/transcriber/ui/screens/HomeScreen.kt
+index 34d8d8b..0d9c437 100644
+--- a/app/src/main/java/com/nanzhufeng/transcriber/ui/screens/HomeScreen.kt
++++ b/app/src/main/java/com/nanzhufeng/transcriber/ui/screens/HomeScreen.kt
+@@ -41,10 +41,8 @@ import androidx.compose.material.icons.outlined.FolderOpen
+ import androidx.compose.material.icons.outlined.MusicVideo
+ import androidx.compose.material.icons.outlined.Replay
+ import androidx.compose.material.icons.outlined.Settings
+-import androidx.compose.material3.AlertDialog
+ import androidx.compose.material3.Button
+ import androidx.compose.material3.ButtonDefaults
+-import androidx.compose.material3.HorizontalDivider
+ import androidx.compose.material3.Icon
+ import androidx.compose.material3.IconButton
+ import androidx.compose.material3.LinearProgressIndicator
+@@ -56,7 +54,7 @@ import androidx.compose.material3.DropdownMenuItem
+ import androidx.compose.material3.ExperimentalMaterial3Api
+ import androidx.compose.material3.ExposedDropdownMenuBox
+ import androidx.compose.material3.ExposedDropdownMenuDefaults
+-import androidx.compose.material3.OutlinedTextField
++import androidx.compose.material3.TextField
+ import androidx.compose.runtime.Composable
+ import androidx.compose.runtime.DisposableEffect
+ import androidx.compose.runtime.LaunchedEffect
+@@ -87,6 +85,11 @@ import com.nanzhufeng.transcriber.ui.PendingSourceUi
+ import com.nanzhufeng.transcriber.ui.TranscriptionUiState
+ import com.nanzhufeng.transcriber.ui.components.SectionHeading
+ import com.nanzhufeng.transcriber.ui.components.TaskMediaPreview
++import com.nanzhufeng.transcriber.ui.theme.WorkbenchControlBackground
++import com.nanzhufeng.transcriber.ui.components.workbenchTextFieldColors
++import com.nanzhufeng.transcriber.ui.components.WorkbenchPageHeader
++import com.nanzhufeng.transcriber.ui.components.WorkbenchDropdownMenu
++import com.nanzhufeng.transcriber.ui.components.WorkbenchAlertDialog
+ import com.nanzhufeng.transcriber.ui.components.WorkbenchCard
+ import com.nanzhufeng.transcriber.ui.components.formatBytes
+ import com.nanzhufeng.transcriber.ui.components.formatDateTime
+@@ -210,7 +213,8 @@ fun HomeScreen(
+     }
+ 
+     pendingDelete?.let { taskId ->
+-        AlertDialog(
++        WorkbenchAlertDialog(
++            containerColor = Color.White,
+             onDismissRequest = { pendingDelete = null },
+             title = { Text("删除这条转写任务？") },
+             text = {
+@@ -360,30 +364,7 @@ private fun TranscriptionModelCard(
+ 
+ @Composable
+ private fun HomeHeader(expanded: Boolean) {
+-    if (expanded) {
+-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+-            Text("首页", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+-            Text(
+-                "批量加入音视频，任务可在后台顺序转写",
+-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+-                style = MaterialTheme.typography.bodyMedium,
+-            )
+-        }
+-    } else {
+-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+-            Image(
+-                painter = painterResource(R.mipmap.app_icon),
+-                contentDescription = "南枫转写",
+-                modifier = Modifier.size(52.dp),
+-            )
+-            Text(
+-                text = "南枫转写",
+-                modifier = Modifier.padding(start = 12.dp),
+-                style = MaterialTheme.typography.titleLarge,
+-                fontWeight = FontWeight.Bold,
+-            )
+-        }
+-    }
++    WorkbenchPageHeader(title = if (expanded) "首页" else "南枫转写")
+ }
+ 
+ @Composable
+@@ -515,7 +496,7 @@ private fun CurrentWorkCard(
+                             onEdit = { editingSource = source },
+                             onDelete = { onRemovePendingSource(source.key) },
+                         )
+-                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.68f))
++                        Spacer(Modifier.height(8.dp))
+                     }
+                     itemsIndexed(pendingTasks, key = { _, task -> task.id }) { index, task ->
+                         TranscriptionQueueRow(
+@@ -530,7 +511,7 @@ private fun CurrentWorkCard(
+                             onDeleteTask = onDeleteTask,
+                         )
+                         if (index < pendingTasks.lastIndex) {
+-                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.68f))
++                            Spacer(Modifier.height(8.dp))
+                         }
+                     }
+                 }
+@@ -576,7 +557,8 @@ private fun PendingSourceRow(
+     onDelete: () -> Unit,
+ ) {
+     Row(
+-        modifier = Modifier.fillMaxWidth().height(if (expanded) 84.dp else 78.dp).padding(horizontal = 6.dp),
++        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(WorkbenchControlBackground)
++            .height(if (expanded) 84.dp else 78.dp).padding(horizontal = 6.dp),
+         verticalAlignment = Alignment.CenterVertically,
+         horizontalArrangement = Arrangement.spacedBy(7.dp),
+     ) {
+@@ -668,7 +650,8 @@ private fun PendingSourceOptionsDialog(
+                 ?: requireNotNull(OfficialModelCatalog.find("sensevoice-small-int8")).manifest.modelId,
+         )
+     }
+-    AlertDialog(
++    WorkbenchAlertDialog(
++            containerColor = Color.White,
+         onDismissRequest = onDismiss,
+         title = { Text("单项转写设置") },
+         text = {
+@@ -712,7 +695,7 @@ private fun QueueSelectionField(
+         expanded = expanded,
+         onExpandedChange = { expanded = !expanded },
+     ) {
+-        OutlinedTextField(
++        TextField(
+             value = selectedLabel,
+             onValueChange = {},
+             readOnly = true,
+@@ -720,8 +703,10 @@ private fun QueueSelectionField(
+             label = { Text(label) },
+             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
+             modifier = Modifier.menuAnchor().fillMaxWidth(),
++            shape = RoundedCornerShape(14.dp),
++            colors = workbenchTextFieldColors(),
+         )
+-        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
++        WorkbenchDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+             options.forEach { (value, optionLabel) ->
+                 DropdownMenuItem(
+                     text = { Text(optionLabel) },
+@@ -773,7 +758,7 @@ private fun TranscriptionQueueRow(
+             .clip(RoundedCornerShape(14.dp))
+             .clickable(enabled = canExpand) { detailsExpanded = !detailsExpanded },
+         shape = RoundedCornerShape(14.dp),
+-        color = if (active) Color(0xFFFFF3D6) else Color.Transparent,
++        color = if (active) Color(0xFFFFF3D6) else WorkbenchControlBackground,
+     ) {
+         Column(
+             modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 6.dp),
+@@ -1019,7 +1004,7 @@ private fun ActionDock(
+             modifier = Modifier.fillMaxWidth().clickable(enabled = !state.isBusy, onClick = onChooseSource),
+             color = if (dragActive) MaterialTheme.colorScheme.primaryContainer else Color.Black.copy(alpha = 0.055f),
+             shape = RoundedCornerShape(12.dp),
+-            shadowElevation = if (dragActive) 2.dp else 0.dp,
++            shadowElevation = 0.dp,
+         ) {
+             Row(
+                 modifier = Modifier
+diff --git a/app/src/main/java/com/nanzhufeng/transcriber/ui/screens/SettingsScreen.kt b/app/src/main/java/com/nanzhufeng/transcriber/ui/screens/SettingsScreen.kt
+index 3f083b5..faa37a9 100644
+--- a/app/src/main/java/com/nanzhufeng/transcriber/ui/screens/SettingsScreen.kt
++++ b/app/src/main/java/com/nanzhufeng/transcriber/ui/screens/SettingsScreen.kt
+@@ -1,7 +1,8 @@
+ package com.nanzhufeng.transcriber.ui.screens
+ 
+ import android.net.Uri
+-import androidx.compose.foundation.clickable
++import androidx.activity.compose.BackHandler
++import androidx.compose.foundation.background
+ import androidx.compose.foundation.text.ClickableText
+ import androidx.compose.foundation.text.selection.SelectionContainer
+ import androidx.compose.material.icons.Icons
+@@ -9,33 +10,44 @@ import androidx.compose.material.icons.filled.Visibility
+ import androidx.compose.material.icons.filled.VisibilityOff
+ import androidx.compose.foundation.layout.Arrangement
+ import androidx.compose.foundation.layout.Column
+-import androidx.compose.foundation.layout.IntrinsicSize
++import androidx.compose.foundation.layout.PaddingValues
+ import androidx.compose.foundation.layout.Row
+ import androidx.compose.foundation.layout.Spacer
+-import androidx.compose.foundation.layout.fillMaxHeight
++import androidx.compose.foundation.layout.heightIn
++import androidx.compose.foundation.layout.size
++import androidx.compose.foundation.layout.Box
++import androidx.compose.foundation.layout.widthIn
+ import androidx.compose.foundation.layout.fillMaxSize
+ import androidx.compose.foundation.layout.fillMaxWidth
+ import androidx.compose.foundation.layout.height
+ import androidx.compose.foundation.layout.padding
+ import androidx.compose.foundation.lazy.LazyColumn
++import androidx.compose.foundation.lazy.items
++import androidx.compose.foundation.lazy.rememberLazyListState
++import androidx.compose.material.icons.outlined.ChevronRight
++import androidx.compose.material.icons.outlined.Memory
++import androidx.compose.material.icons.outlined.Tune
++import androidx.compose.material.icons.outlined.FolderOpen
++import androidx.compose.material.icons.outlined.Notifications
++import androidx.compose.material.icons.outlined.History
++import androidx.compose.material.icons.outlined.Info
+ import androidx.compose.material3.Button
+-import androidx.compose.material3.AlertDialog
+ import androidx.compose.material3.DropdownMenuItem
+ import androidx.compose.material3.ExperimentalMaterial3Api
+ import androidx.compose.material3.ExposedDropdownMenuBox
+ import androidx.compose.material3.ExposedDropdownMenuDefaults
+-import androidx.compose.material3.HorizontalDivider
+ import androidx.compose.material3.Icon
+ import androidx.compose.material3.IconButton
+ import androidx.compose.material3.LinearProgressIndicator
+ import androidx.compose.material3.MaterialTheme
+-import androidx.compose.material3.OutlinedTextField
++import androidx.compose.material3.TextField
+ import androidx.compose.material3.RadioButton
+ import androidx.compose.material3.Surface
+ import androidx.compose.material3.Text
+ import androidx.compose.material3.TextButton
+ import androidx.compose.runtime.Composable
+ import androidx.compose.runtime.LaunchedEffect
++import androidx.compose.runtime.key
+ import androidx.compose.runtime.getValue
+ import androidx.compose.runtime.mutableStateOf
+ import androidx.compose.runtime.remember
+@@ -44,20 +56,24 @@ import androidx.compose.runtime.setValue
+ import androidx.compose.ui.Alignment
+ import androidx.compose.ui.Modifier
+ import androidx.compose.ui.graphics.Color
++import androidx.compose.ui.graphics.vector.ImageVector
+ import androidx.compose.ui.platform.LocalUriHandler
+ import androidx.compose.ui.semantics.Role
+ import androidx.compose.ui.semantics.onClick
+ import androidx.compose.ui.semantics.semantics
++import androidx.compose.ui.semantics.role
++import androidx.compose.ui.semantics.clearAndSetSemantics
++import androidx.compose.ui.draw.clip
+ import androidx.compose.foundation.shape.RoundedCornerShape
+ import androidx.compose.ui.text.SpanStyle
+ import androidx.compose.ui.text.buildAnnotatedString
+ import androidx.compose.ui.text.font.FontWeight
+ import androidx.compose.ui.text.input.PasswordVisualTransformation
+ import androidx.compose.ui.text.input.VisualTransformation
+-import androidx.compose.ui.text.style.TextAlign
+ import androidx.compose.ui.text.style.TextDecoration
+ import androidx.compose.ui.text.withStyle
+ import androidx.compose.ui.unit.dp
++import androidx.compose.ui.unit.sp
+ import com.nanzhufeng.transcriber.BuildConfig
+ import com.nanzhufeng.transcriber.data.modelstore.OfficialModelCatalog
+ import com.nanzhufeng.transcriber.data.settings.TranscriptionSettings
+@@ -66,14 +82,22 @@ import com.nanzhufeng.transcriber.domain.invocation.AsrInvocationRecord
+ import com.nanzhufeng.transcriber.domain.model.ModelInstallState
+ import com.nanzhufeng.transcriber.ui.TranscriptionUiState
+ import com.nanzhufeng.transcriber.ui.components.SectionHeading
++import com.nanzhufeng.transcriber.ui.components.SettingsPageHeader
+ import com.nanzhufeng.transcriber.ui.components.StatusPill
+ import com.nanzhufeng.transcriber.ui.components.SubtleActionButton
++import com.nanzhufeng.transcriber.ui.components.WorkbenchDropdownMenu
++import com.nanzhufeng.transcriber.ui.components.WorkbenchAlertDialog
+ import com.nanzhufeng.transcriber.ui.components.WorkbenchCard
+ import com.nanzhufeng.transcriber.ui.components.formatBytes
+ import com.nanzhufeng.transcriber.ui.theme.ActionOrange
+ import com.nanzhufeng.transcriber.ui.theme.AttentionOchre
+ import com.nanzhufeng.transcriber.ui.theme.ParameterPurple
+ import com.nanzhufeng.transcriber.ui.theme.NanfengSkinCatalog
++import com.nanzhufeng.transcriber.ui.theme.NanfengSkinOption
++import com.nanzhufeng.transcriber.ui.theme.NanfengTranscriberTheme
++import com.nanzhufeng.transcriber.ui.theme.SettingsPageBackground
++import com.nanzhufeng.transcriber.ui.components.workbenchTextFieldColors
++import com.nanzhufeng.transcriber.ui.theme.WorkbenchControlBackground
+ 
+ @Composable
+ fun SettingsScreen(
+@@ -96,107 +120,83 @@ fun SettingsScreen(
+     onSkinChanged: (String) -> Unit,
+     invocationRecords: List<AsrInvocationRecord>,
+ ) {
+-    var showingInvocationHistory by rememberSaveable { mutableStateOf(false) }
+-    if (showingInvocationHistory) {
+-        AsrInvocationHistoryScreen(
+-            records = invocationRecords,
+-            onBack = { showingInvocationHistory = false },
+-        )
++    var selectedModuleName by rememberSaveable { mutableStateOf<String?>(null) }
++    val selectedModule = SettingsModule.entries.firstOrNull { it.name == selectedModuleName }
++    val rootListState = rememberLazyListState()
++    val onBack = { selectedModuleName = null }
++    if (selectedModule == SettingsModule.INVOCATIONS) {
++        AsrInvocationHistoryScreen(records = invocationRecords, onBack = onBack)
+         return
+     }
++    BackHandler(enabled = selectedModule != null, onBack = onBack)
+     Column(
+-        modifier = Modifier
+-            .fillMaxSize()
+-            .padding(top = 14.dp),
++        modifier = Modifier.fillMaxSize().background(SettingsPageBackground).padding(top = 14.dp),
++        horizontalAlignment = Alignment.CenterHorizontally,
+     ) {
+-        Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+-            Text(
+-                text = "设置",
+-                style = if (expanded) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.headlineSmall,
+-                fontWeight = FontWeight.Bold,
+-            )
+-            Spacer(Modifier.height(12.dp))
+-        }
+-
+-        if (expanded) {
+-            val moduleRows = listOf(
+-                SettingsModule.APPEARANCE to SettingsModule.MODEL,
+-                SettingsModule.MODEL_DETAILS to SettingsModule.TRANSCRIPTION,
+-                SettingsModule.OUTPUT to SettingsModule.ISLAND,
+-            )
++        SettingsPageHeader(
++            title = selectedModule?.label ?: "设置",
++            onBack = if (selectedModule == null) null else onBack,
++        )
++        if (selectedModule == null) {
+             LazyColumn(
+-                modifier = Modifier.fillMaxSize(),
+-                contentPadding = androidx.compose.foundation.layout.PaddingValues(
+-                    start = 16.dp,
+-                    end = 16.dp,
+-                    bottom = 14.dp,
+-                ),
+-                verticalArrangement = Arrangement.spacedBy(14.dp),
++                modifier = Modifier.widthIn(max = if (expanded) 840.dp else 600.dp).fillMaxSize(),
++                state = rootListState,
++                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
++                verticalArrangement = Arrangement.spacedBy(10.dp),
+             ) {
+-                items(moduleRows.size) { index ->
+-                    val (leftModule, rightModule) = moduleRows[index]
+-                    SettingsModuleGridRow(
+-                        leftModule = leftModule,
+-                        rightModule = rightModule,
+-                        state = state,
+-                        settings = settings,
+-                        onDownloadModel = onDownloadModel,
+-                        onImportModel = onImportModel,
+-                        onExportModel = onExportModel,
+-                        onVerifyModel = onVerifyModel,
+-                        onDeleteModel = onDeleteModel,
+-                        onModelChanged = onModelChanged,
+-                        onLanguageChanged = onLanguageChanged,
+-                        onThreadCountChanged = onThreadCountChanged,
+-                        onChooseOutputDirectory = onChooseOutputDirectory,
+-                        onClearOutputDirectory = onClearOutputDirectory,
+-                        onConflictPolicyChanged = onConflictPolicyChanged,
+-                        onSavePostProcessApiKey = onSavePostProcessApiKey,
+-                        onRevealPostProcessApiKey = onRevealPostProcessApiKey,
+-                        onSkinChanged = onSkinChanged,
+-                        invocationRecords = invocationRecords,
+-                        onOpenInvocationHistory = { showingInvocationHistory = true },
+-                    )
++                item(key = "skin") {
++                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
++                        SettingsGroupHeading("皮肤")
++                        AppearanceCard(settings, onSkinChanged)
++                    }
+                 }
+-                item {
+-                    AboutSection()
++                items(SettingsGroup.entries, key = { it.name }) { group ->
++                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
++                        SettingsGroupHeading(group.title)
++                        Surface(
++                            shape = RoundedCornerShape(18.dp),
++                            color = Color.White,
++                            tonalElevation = 0.dp,
++                            shadowElevation = 0.dp,
++                        ) {
++                            Column {
++                                group.modules.forEach { module ->
++                                    SettingsMenuEntry(
++                                        module = module,
++                                        onClick = { selectedModuleName = module.name },
++                                    )
++                                }
++                            }
++                        }
++                    }
+                 }
+             }
+         } else {
+-            LazyColumn(
+-                modifier = Modifier.fillMaxSize(),
+-                contentPadding = androidx.compose.foundation.layout.PaddingValues(
+-                    start = 16.dp,
+-                    end = 16.dp,
+-                    bottom = 14.dp,
+-                ),
+-                verticalArrangement = Arrangement.spacedBy(12.dp),
+-            ) {
+-                items(SettingsModule.entries.size) { index ->
+-                    SettingsModuleCard(
+-                        module = SettingsModule.entries[index],
+-                        state = state,
+-                        settings = settings,
+-                        onDownloadModel = onDownloadModel,
+-                        onImportModel = onImportModel,
+-                        onExportModel = onExportModel,
+-                        onVerifyModel = onVerifyModel,
+-                        onDeleteModel = onDeleteModel,
+-                        onModelChanged = onModelChanged,
+-                        onLanguageChanged = onLanguageChanged,
+-                        onThreadCountChanged = onThreadCountChanged,
+-                        onChooseOutputDirectory = onChooseOutputDirectory,
+-                        onClearOutputDirectory = onClearOutputDirectory,
+-                        onConflictPolicyChanged = onConflictPolicyChanged,
+-                        onSavePostProcessApiKey = onSavePostProcessApiKey,
+-                        onRevealPostProcessApiKey = onRevealPostProcessApiKey,
+-                        onSkinChanged = onSkinChanged,
+-                        invocationRecords = invocationRecords,
+-                        onOpenInvocationHistory = { showingInvocationHistory = true },
+-                    )
+-                }
+-                item {
+-                    AboutSection()
++            key(selectedModule) {
++                LazyColumn(
++                    modifier = Modifier.widthIn(max = 840.dp).fillMaxSize(),
++                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
++                ) {
++                    item {
++                        SettingsModuleCard(
++                            module = selectedModule,
++                            state = state,
++                            settings = settings,
++                            onDownloadModel = onDownloadModel,
++                            onImportModel = onImportModel,
++                            onExportModel = onExportModel,
++                            onVerifyModel = onVerifyModel,
++                            onDeleteModel = onDeleteModel,
++                            onModelChanged = onModelChanged,
++                            onLanguageChanged = onLanguageChanged,
++                            onThreadCountChanged = onThreadCountChanged,
++                            onChooseOutputDirectory = onChooseOutputDirectory,
++                            onClearOutputDirectory = onClearOutputDirectory,
++                            onConflictPolicyChanged = onConflictPolicyChanged,
++                            onSavePostProcessApiKey = onSavePostProcessApiKey,
++                            onRevealPostProcessApiKey = onRevealPostProcessApiKey,
++                        )
++                    }
+                 }
+             }
+         }
+@@ -204,78 +204,41 @@ fun SettingsScreen(
+ }
+ 
+ @Composable
+-private fun SettingsModuleGridRow(
+-    leftModule: SettingsModule,
+-    rightModule: SettingsModule,
+-    state: TranscriptionUiState,
+-    settings: TranscriptionSettings,
+-    onDownloadModel: () -> Unit,
+-    onImportModel: () -> Unit,
+-    onExportModel: () -> Unit,
+-    onVerifyModel: () -> Unit,
+-    onDeleteModel: () -> Unit,
+-    onModelChanged: (String) -> Unit,
+-    onLanguageChanged: (String?) -> Unit,
+-    onThreadCountChanged: (Int) -> Unit,
+-    onChooseOutputDirectory: () -> Unit,
+-    onClearOutputDirectory: () -> Unit,
+-    onConflictPolicyChanged: (OutputConflictPolicy) -> Unit,
+-    onSavePostProcessApiKey: (String) -> Unit,
+-    onRevealPostProcessApiKey: () -> Unit,
+-    onSkinChanged: (String) -> Unit,
+-    invocationRecords: List<AsrInvocationRecord>,
+-    onOpenInvocationHistory: () -> Unit,
++private fun SettingsGroupHeading(title: String) {
++    Text(
++        text = title,
++        modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
++        style = MaterialTheme.typography.labelLarge,
++        color = Color(0xFF666666),
++    )
++}
++
++@Composable
++private fun SettingsMenuEntry(
++    module: SettingsModule,
++    onClick: () -> Unit,
+ ) {
+-    Row(
+-        modifier = Modifier
+-            .fillMaxWidth()
+-            .height(IntrinsicSize.Max),
+-        horizontalArrangement = Arrangement.spacedBy(14.dp),
++    Surface(
++        onClick = onClick,
++        modifier = Modifier.fillMaxWidth(),
++        color = Color.White,
++        tonalElevation = 0.dp,
+     ) {
+-        SettingsModuleCard(
+-            module = leftModule,
+-            state = state,
+-            settings = settings,
+-            onDownloadModel = onDownloadModel,
+-            onImportModel = onImportModel,
+-            onExportModel = onExportModel,
+-            onVerifyModel = onVerifyModel,
+-            onDeleteModel = onDeleteModel,
+-            onModelChanged = onModelChanged,
+-            onLanguageChanged = onLanguageChanged,
+-            onThreadCountChanged = onThreadCountChanged,
+-            onChooseOutputDirectory = onChooseOutputDirectory,
+-            onClearOutputDirectory = onClearOutputDirectory,
+-            onConflictPolicyChanged = onConflictPolicyChanged,
+-            onSavePostProcessApiKey = onSavePostProcessApiKey,
+-            onRevealPostProcessApiKey = onRevealPostProcessApiKey,
+-            onSkinChanged = onSkinChanged,
+-            invocationRecords = invocationRecords,
+-            onOpenInvocationHistory = onOpenInvocationHistory,
+-            modifier = Modifier.weight(1f).fillMaxHeight(),
+-        )
+-        SettingsModuleCard(
+-            module = rightModule,
+-            state = state,
+-            settings = settings,
+-            onDownloadModel = onDownloadModel,
+-            onImportModel = onImportModel,
+-            onExportModel = onExportModel,
+-            onVerifyModel = onVerifyModel,
+-            onDeleteModel = onDeleteModel,
+-            onModelChanged = onModelChanged,
+-            onLanguageChanged = onLanguageChanged,
+-            onThreadCountChanged = onThreadCountChanged,
+-            onChooseOutputDirectory = onChooseOutputDirectory,
+-            onClearOutputDirectory = onClearOutputDirectory,
+-            onConflictPolicyChanged = onConflictPolicyChanged,
+-            onSavePostProcessApiKey = onSavePostProcessApiKey,
+-            onRevealPostProcessApiKey = onRevealPostProcessApiKey,
+-            onSkinChanged = onSkinChanged,
+-            invocationRecords = invocationRecords,
+-            onOpenInvocationHistory = onOpenInvocationHistory,
+-            modifier = Modifier.weight(1f).fillMaxHeight(),
+-        )
++        Row(
++            modifier = Modifier.heightIn(min = 64.dp).padding(horizontal = 20.dp, vertical = 16.dp),
++            verticalAlignment = Alignment.CenterVertically,
++            horizontalArrangement = Arrangement.spacedBy(16.dp),
++        ) {
++            Icon(module.icon, contentDescription = null, tint = Color(0xFF555555))
++            Text(
++                text = module.label,
++                modifier = Modifier.weight(1f),
++                style = MaterialTheme.typography.titleMedium,
++                color = Color(0xFF242424),
++            )
++            Icon(Icons.Outlined.ChevronRight, contentDescription = null,
++                tint = Color(0xFF777777))
++        }
+     }
+ }
+ 
+@@ -297,22 +260,19 @@ private fun SettingsModuleCard(
+     onConflictPolicyChanged: (OutputConflictPolicy) -> Unit,
+     onSavePostProcessApiKey: (String) -> Unit,
+     onRevealPostProcessApiKey: () -> Unit,
+-    onSkinChanged: (String) -> Unit,
+-    invocationRecords: List<AsrInvocationRecord>,
+-    onOpenInvocationHistory: () -> Unit,
+     modifier: Modifier = Modifier,
+ ) {
+     when (module) {
+-        SettingsModule.MODEL -> ModelSelectionCard(
+-            selectedModelId = settings.modelId,
+-            isBusy = state.isBusy,
+-            onModelChanged = onModelChanged,
+-            modifier = modifier,
+-        )
+-        SettingsModule.MODEL_DETAILS -> Column(
++        SettingsModule.MODEL -> Column(
+             modifier = modifier,
+             verticalArrangement = Arrangement.spacedBy(12.dp),
+         ) {
++            ModelSelectionCard(
++                selectedModelId = settings.modelId,
++                isBusy = state.isBusy,
++                onModelChanged = onModelChanged,
++                modifier = Modifier.fillMaxWidth(),
++            )
+             ModelDetailsCard(
+                 state = state,
+                 settings = settings,
+@@ -326,12 +286,6 @@ private fun SettingsModuleCard(
+                 onRevealApiKey = onRevealPostProcessApiKey,
+                 modifier = Modifier.fillMaxWidth(),
+             )
+-            if (OfficialModelCatalog.find(settings.modelId)?.requiresLocalCache == false) {
+-                AsrInvocationLedgerEntry(
+-                    records = invocationRecords,
+-                    onOpen = onOpenInvocationHistory,
+-                )
+-            }
+         }
+         SettingsModule.TRANSCRIPTION -> TranscriptionSettingsCard(
+             settings = settings,
+@@ -346,8 +300,9 @@ private fun SettingsModuleCard(
+             onConflictPolicyChanged = onConflictPolicyChanged,
+             modifier = modifier,
+         )
+-        SettingsModule.APPEARANCE -> AppearanceCard(settings, onSkinChanged, modifier)
+         SettingsModule.ISLAND -> BackgroundIslandSettingsCard(modifier)
++        SettingsModule.ABOUT -> AboutSection(modifier)
++        SettingsModule.INVOCATIONS -> Unit // 独立记录页由 SettingsScreen 路由。
+     }
+ }
+ 
+@@ -378,7 +333,7 @@ private fun HighAccuracyServiceCard(
+             "Paraformer-v2" else "Qwen Audio 3.1 Filetrans")
+         Text("沿用百炼 API Key；音频上传到百炼临时空间，最长保留 48 小时，转写可能产生费用。",
+             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+-        OutlinedTextField(
++        TextField(
+             value = apiKey,
+             onValueChange = { input ->
+                 apiKey = if (!apiKeyEdited && input.startsWith(savedKeyMask)) {
+@@ -390,6 +345,8 @@ private fun HighAccuracyServiceCard(
+             },
+             modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+             singleLine = true,
++            shape = RoundedCornerShape(14.dp),
++            colors = workbenchTextFieldColors(),
+             visualTransformation = if (apiKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
+             label = { Text("百炼 API Key") },
+             trailingIcon = {
+@@ -530,8 +487,9 @@ private fun ModelCacheCard(
+ ) {
+     var showDeleteConfirmation by remember { mutableStateOf(false) }
+     if (showDeleteConfirmation) {
+-        AlertDialog(
++        WorkbenchAlertDialog(
+             onDismissRequest = { showDeleteConfirmation = false },
++            containerColor = Color.White,
+             title = { Text("删除所选模型缓存？") },
+             text = {
+                 Text("只删除当前选中的 ${state.modelDisplayName}，其他模型、原文件和转写结果不受影响。需要时可重新下载或导入。")
+@@ -631,16 +589,15 @@ private fun ModelChoiceRow(
+     onClick: () -> Unit,
+ ) {
+     Surface(
++        onClick = onClick,
++        enabled = enabled,
++        selected = selected,
+         modifier = Modifier
+             .fillMaxWidth()
+-            .padding(top = 6.dp)
+-            .clickable(
+-                enabled = enabled,
+-                role = Role.RadioButton,
+-                onClick = onClick,
+-            ),
++            .semantics { role = Role.RadioButton }
++            .padding(top = 6.dp),
+         shape = RoundedCornerShape(14.dp),
+-        color = if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Black.copy(alpha = 0.045f),
++        color = if (selected) MaterialTheme.colorScheme.primaryContainer else WorkbenchControlBackground,
+     ) {
+         Row(
+             modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+@@ -704,7 +661,7 @@ private fun SelectionField(
+         expanded = expanded,
+         onExpandedChange = { if (enabled) expanded = !expanded },
+     ) {
+-        OutlinedTextField(
++        TextField(
+             value = selectedLabel,
+             onValueChange = {},
+             modifier = Modifier
+@@ -715,14 +672,18 @@ private fun SelectionField(
+             singleLine = true,
+             label = { Text(label) },
+             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+-            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
++            shape = RoundedCornerShape(14.dp),
++            colors = workbenchTextFieldColors(),
+         )
+-        ExposedDropdownMenu(
++        WorkbenchDropdownMenu(
+             expanded = expanded,
+             onDismissRequest = { expanded = false },
+         ) {
+             options.forEach { (value, optionLabel) ->
+                 DropdownMenuItem(
++                    modifier = Modifier.background(
++                        if (value == selectedValue) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
++                    ),
+                     text = {
+                         Text(
+                             text = optionLabel,
+@@ -751,20 +712,106 @@ private fun AppearanceCard(
+     onSkinChanged: (String) -> Unit,
+     modifier: Modifier = Modifier,
+ ) {
+-    WorkbenchCard(modifier = modifier.fillMaxWidth()) {
+-        SectionHeading(
+-            title = "皮肤",
+-            color = AttentionOchre,
+-        )
+-        Spacer(Modifier.height(10.dp))
+-        SelectionField(
+-            label = "界面皮肤",
+-            selectedValue = settings.skinId,
+-            selectedLabel = NanfengSkinCatalog.nameOf(settings.skinId),
+-            options = NanfengSkinCatalog.options.map { it.id to it.displayName },
+-            onSelected = onSkinChanged,
++    var showSkinPicker by rememberSaveable { mutableStateOf(false) }
++    if (showSkinPicker) {
++        WorkbenchAlertDialog(
++            onDismissRequest = { showSkinPicker = false },
++            containerColor = Color.White,
++            title = { Text("选择皮肤") },
++            text = {
++                Column {
++                    NanfengSkinCatalog.options.forEach { skin ->
++                        SkinChoiceRow(
++                            skin = skin,
++                            selected = settings.skinId == skin.id,
++                            onClick = {
++                                if (settings.skinId != skin.id) onSkinChanged(skin.id)
++                                showSkinPicker = false
++                            },
++                        )
++                    }
++                }
++            },
++            confirmButton = {},
+         )
+     }
++    WorkbenchCard(modifier = modifier.fillMaxWidth()) {
++        Surface(
++            onClick = { showSkinPicker = true },
++            modifier = Modifier.fillMaxWidth(),
++            shape = RoundedCornerShape(14.dp),
++            color = WorkbenchControlBackground,
++        ) {
++            Row(
++                modifier = Modifier.heightIn(min = 56.dp).padding(horizontal = 16.dp, vertical = 12.dp),
++                verticalAlignment = Alignment.CenterVertically,
++                horizontalArrangement = Arrangement.spacedBy(12.dp),
++            ) {
++                Text(
++                    text = NanfengSkinCatalog.nameOf(settings.skinId),
++                    modifier = Modifier.weight(1f),
++                    style = MaterialTheme.typography.bodyLarge,
++                )
++                Icon(Icons.Outlined.ChevronRight, contentDescription = "选择皮肤")
++            }
++        }
++    }
++}
++
++@Composable
++private fun SkinChoiceRow(skin: NanfengSkinOption, selected: Boolean, onClick: () -> Unit) {
++    Surface(
++        selected = selected,
++        onClick = onClick,
++        modifier = Modifier.fillMaxWidth().padding(top = 8.dp).semantics { role = Role.RadioButton },
++        shape = RoundedCornerShape(14.dp),
++        color = if (selected) MaterialTheme.colorScheme.primaryContainer else WorkbenchControlBackground,
++    ) {
++        Row(
++            modifier = Modifier.padding(10.dp),
++            verticalAlignment = Alignment.CenterVertically,
++            horizontalArrangement = Arrangement.spacedBy(10.dp),
++        ) {
++            NanfengTranscriberTheme(skinId = skin.id) { SkinEffectPreview() }
++            Text(
++                skin.displayName,
++                modifier = Modifier.weight(1f),
++                style = MaterialTheme.typography.bodyMedium,
++                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
++            )
++            RadioButton(selected = selected, onClick = null)
++        }
++    }
++}
++
++/** 直接消费各皮肤的真实令牌，不使用与当前界面不符的装饰图。 */
++@Composable
++private fun SkinEffectPreview() {
++    Column(
++        modifier = Modifier.size(width = 76.dp, height = 58.dp).clip(RoundedCornerShape(8.dp))
++            .background(MaterialTheme.colorScheme.background).padding(5.dp).clearAndSetSemantics {},
++        verticalArrangement = Arrangement.spacedBy(4.dp),
++    ) {
++        Surface(color = Color.White, shape = RoundedCornerShape(5.dp)) {
++            Row(
++                modifier = Modifier.fillMaxWidth().padding(4.dp),
++                verticalAlignment = Alignment.CenterVertically,
++                horizontalArrangement = Arrangement.SpaceBetween,
++            ) {
++                Text("转写", fontSize = 8.sp, lineHeight = 10.sp)
++                Surface(color = MaterialTheme.colorScheme.primary, shape = RoundedCornerShape(50)) {
++                    Text("开始", modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
++                        color = MaterialTheme.colorScheme.onPrimary, fontSize = 6.sp, lineHeight = 8.sp)
++                }
++            }
++        }
++        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
++            Box(Modifier.weight(1f).height(10.dp).clip(RoundedCornerShape(50))
++                .background(MaterialTheme.colorScheme.primaryContainer))
++            Box(Modifier.weight(1f).height(10.dp).clip(RoundedCornerShape(50)).background(Color.White))
++            Box(Modifier.weight(1f).height(10.dp).clip(RoundedCornerShape(50)).background(Color.White))
++        }
++    }
+ }
+ 
+ @Composable
+@@ -772,14 +819,6 @@ private fun AboutSection(
+     modifier: Modifier = Modifier,
+ ) {
+     Column(modifier = modifier.fillMaxWidth()) {
+-        Text(
+-            text = "关于",
+-            modifier = Modifier.fillMaxWidth(),
+-            style = MaterialTheme.typography.titleLarge,
+-            fontWeight = FontWeight.Bold,
+-            textAlign = TextAlign.Center,
+-        )
+-        Spacer(Modifier.height(10.dp))
+         WorkbenchCard(
+             modifier = Modifier.fillMaxWidth(),
+             contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+@@ -799,7 +838,7 @@ private fun AboutSection(
+                     )
+                 }
+             }
+-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.56f))
++            Spacer(Modifier.height(8.dp).fillMaxWidth().background(SettingsPageBackground))
+             SelectionContainer {
+                 Column(modifier = Modifier.padding(16.dp)) {
+                     Text(
+@@ -812,7 +851,7 @@ private fun AboutSection(
+                     AboutInfoLine("构建时间", BuildConfig.BUILD_TIME)
+                 }
+             }
+-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.56f))
++            Spacer(Modifier.height(8.dp).fillMaxWidth().background(SettingsPageBackground))
+             SelectionContainer {
+                 Column(modifier = Modifier.padding(16.dp)) {
+                     Text(
+@@ -930,13 +969,19 @@ private fun modelStateText(state: ModelInstallState): String = when (state) {
+ 
+ private fun threadLabel(count: Int): String = if (count == 0) "自动（推荐）" else "$count 线程"
+ 
+-private enum class SettingsModule {
+-    APPEARANCE,
+-    MODEL,
+-    MODEL_DETAILS,
+-    TRANSCRIPTION,
+-    OUTPUT,
+-    ISLAND,
++private enum class SettingsModule(val label: String, val icon: ImageVector) {
++    MODEL("转写模型", Icons.Outlined.Memory),
++    TRANSCRIPTION("转写参数", Icons.Outlined.Tune),
++    OUTPUT("输出与文件", Icons.Outlined.FolderOpen),
++    ISLAND("灵动岛", Icons.Outlined.Notifications),
++    INVOCATIONS("调用记录", Icons.Outlined.History),
++    ABOUT("关于", Icons.Outlined.Info),
++}
++
++private enum class SettingsGroup(val title: String, val modules: List<SettingsModule>) {
++    APPEARANCE("提醒", listOf(SettingsModule.ISLAND)),
++    TRANSCRIPTION("转写与文件", listOf(SettingsModule.MODEL, SettingsModule.INVOCATIONS, SettingsModule.TRANSCRIPTION, SettingsModule.OUTPUT)),
++    INFORMATION("关于", listOf(SettingsModule.ABOUT)),
+ }
+ 
+ private enum class LanguageOption(val label: String, val code: String?) {
+diff --git a/app/src/main/java/com/nanzhufeng/transcriber/ui/theme/Theme.kt b/app/src/main/java/com/nanzhufeng/transcriber/ui/theme/Theme.kt
+index 239eab5..b23cbc6 100644
+--- a/app/src/main/java/com/nanzhufeng/transcriber/ui/theme/Theme.kt
++++ b/app/src/main/java/com/nanzhufeng/transcriber/ui/theme/Theme.kt
+@@ -13,11 +13,15 @@ import androidx.compose.ui.text.font.FontWeight
+ import androidx.compose.ui.unit.dp
+ import androidx.compose.ui.unit.sp
+ 
++/** 设置及其子页共用中性表面，皮肤仅改变小面积选中反馈。 */
++val WorkbenchPageBackground = Color(0xFFF0F1F3)
++val SettingsPageBackground = WorkbenchPageBackground
++val WorkbenchControlBackground = Color(0xFFF0F1F3)
++
+ val ActionOrange = Color(0xFFFF5A1F)
+ val TranscriptPreviewOrange = Color(0xFF9B6049)
+ val ParameterPurple = Color(0xFF7552B8)
+ val AttentionOchre = Color(0xFFB96812)
+-val WorkbenchBorder = Color(0xFFD7DED9)
+ val SecondaryText = Color(0xFF5F6C64)
+ val FailureRed = Color(0xFFC8161D)
+ 
+@@ -85,10 +89,10 @@ private fun workbenchColors(skinId: String) = (SkinPalettes[skinId] ?: SkinPalet
+     onSecondary = Color.White,
+     tertiary = ParameterPurple,
+     onTertiary = Color.White,
+-    background = palette.background,
++    background = WorkbenchPageBackground,
+     onBackground = palette.onBackground,
+-    surface = palette.surface,
+-    surfaceTint = palette.surface,
++    surface = Color.White,
++    surfaceTint = Color.Transparent,
+     onSurface = palette.onBackground,
+     surfaceVariant = palette.primaryContainer,
+     onSurfaceVariant = palette.onSurfaceVariant,
+@@ -101,20 +105,20 @@ private val WorkbenchTypography = Typography(
+     headlineMedium = TextStyle(
+         fontFamily = FontFamily.SansSerif,
+         fontWeight = FontWeight.Bold,
+-        fontSize = 28.sp,
+-        lineHeight = 34.sp,
++        fontSize = 24.sp,
++        lineHeight = 30.sp,
+     ),
+     headlineSmall = TextStyle(
+         fontFamily = FontFamily.SansSerif,
+         fontWeight = FontWeight.Bold,
+-        fontSize = 24.sp,
+-        lineHeight = 30.sp,
++        fontSize = 22.sp,
++        lineHeight = 28.sp,
+     ),
+     titleLarge = TextStyle(
+         fontFamily = FontFamily.SansSerif,
+         fontWeight = FontWeight.SemiBold,
+-        fontSize = 20.sp,
+-        lineHeight = 26.sp,
++        fontSize = 18.sp,
++        lineHeight = 24.sp,
+     ),
+     titleMedium = TextStyle(
+         fontFamily = FontFamily.SansSerif,

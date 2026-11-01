@@ -44,7 +44,7 @@ fun TopStatusIsland(
         shape = RoundedCornerShape(999.dp),
         color = MaterialTheme.colorScheme.inverseSurface,
         contentColor = MaterialTheme.colorScheme.inverseOnSurface,
-        shadowElevation = 8.dp,
+        shadowElevation = 0.dp,
     ) {
         Row(
             modifier = Modifier.defaultMinSize(minHeight = 44.dp).padding(horizontal = 16.dp, vertical = 10.dp),

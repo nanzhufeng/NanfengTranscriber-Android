@@ -1,0 +1,16 @@
+{
+  "result": "PASS",
+  "version": "0.14.16",
+  "installed_sha256": "473a37077738c776ed2961009c2a049bbc3e905aa604c8bea0b3ce0accf066ac",
+  "byte_comparison": true,
+  "unchanged": [
+    "firstInstallTime",
+    "dataDir",
+    "appId",
+    "debuggable",
+    "accessibility_services_sha256"
+  ],
+  "auto_launch": false,
+  "uninstall_or_clear_data": false,
+  "private_database_integrity": "NOT CHECKED (no private-data access)"
+}

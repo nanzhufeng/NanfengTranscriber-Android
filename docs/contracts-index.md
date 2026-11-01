@@ -23,7 +23,9 @@
 | `docs/signing-and-device-acceptance.md` | CURRENT | 签名配置、包身份和授权覆盖门禁 |
 | `docs/product-acceptance.md` | CURRENT | 功能完成条件与验证范围，详细规则只引用对应所有者 |
 | `docs/PROJECT_STATUS.md` | STATUS | 全项目当前能力、实际验证与缺口 |
-| `docs/CURRENT_HANDOFF.md` | STATUS | 最新任务接续；下方旧任务明确归为历史 |
+| `docs/CURRENT_HANDOFF.md` | STATUS | 最新任务接续；完整旧记录路由历史归档 |
+| `docs/CURRENT_HANDOFF_ARCHIVE_2026-10-23.md` | HISTORY | 2026-10-23整理前完整交接原文，仅证明各原阶段 |
+| `docs/PROJECT_STATUS_ARCHIVE_2026-10-23.md` | HISTORY | 2026-10-23整理前完整状态页及原阶段历史快照 |
 | `docs/next-codex-prompt.md` | ROUTE | 安全续接的最短入口，不指定永久暂停/旧候选版本 |
 | `docs/decision-log.md` | HISTORY | 决策演变、取舍和废止原因；不能据早期条目恢复旧行为 |
 | `docs/南枫转写Android完整开发档案.md` | SNAPSHOT | 2026-10-11完整复盘；后续合同变化仅添加路由，不重写旧检查 |

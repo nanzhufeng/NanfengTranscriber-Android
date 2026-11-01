@@ -62,9 +62,14 @@ touch = overlay[/root.minimumHeight.*?dp\((\d+)\)/, 1].to_i
 inset = overlay[/InsetDrawable\(surface, 0, dp\((\d+)\)/, 1].to_i
 padding = overlay[/root.setPadding\(dp\(if \(expanded\) \d+ else (\d+)\)/, 1].to_i
 assert.call([width, touch, touch - inset * 2, padding].all? { |v| v.positive? && ui.include?("#{v}dp") }, '灵动岛合同几何与实际所有者一致')
-background_position = overlay.index('root.background = if')
+background_position = overlay.index('root.background =')
 padding_position = overlay.index('root.setPadding')
 assert.call(background_position && padding_position && background_position < padding_position, '背景赋值后恢复实际内边距')
+
+topmost_config = read.call('app/src/main/res/xml/island_topmost_service.xml')
+topmost_service = read.call('app/src/main/java/com/nanzhufeng/transcriber/service/IslandTopmostService.kt')
+assert.call(%w[canRetrieveWindowContent canPerformGestures canRequestFilterKeyEvents].all? { |name| topmost_config.include?("android:#{name}=\"false\"") } && topmost_service.include?('eventTypes = 0'), '置顶宿主不读取屏幕、不订阅事件、不执行手势或按键过滤')
+assert.call(overlay.include?('!outerPortrait || !aboveStatusBar') && overlay.include?('TYPE_ACCESSIBILITY_OVERLAY'), '只有已连接的置顶宿主使用状态栏区域，普通悬浮窗使用安全区')
 
 # Source-derived boundaries, not proof of runtime correctness. Missing statements are drift.
 unless options[:ref]
@@ -97,7 +102,7 @@ unless options[:ref]
   assert.call(prompt.include?('contracts-index.md') && !prompt.include?('当前候选为') && !prompt.include?('暂时搁置'), '续接入口不复活旧候选或暂停约定')
 end
 
-core_names = %w[domain/task/IslandDisplayController domain/task/MainScreenVisibilityPolicy domain/task/NanfengIslandState domain/task/TaskNotificationPresentationPolicy engine/DashScopeFileTranscriptionClient engine/DashScopeFileTranscriptionEngine service/BackgroundTranscriptionQueue service/TaskIslandOverlay service/TranscriptionForegroundService service/TranscriptionTaskRunner ui/components/TopStatusIsland ui/screens/BackgroundIslandSettingsCard]
+core_names = %w[domain/task/IslandDisplayController domain/task/MainScreenVisibilityPolicy domain/task/NanfengIslandState domain/task/TaskNotificationPresentationPolicy engine/DashScopeFileTranscriptionClient engine/DashScopeFileTranscriptionEngine service/BackgroundTranscriptionQueue service/TaskIslandOverlay service/IslandTopmostService service/TranscriptionForegroundService service/TranscriptionTaskRunner ui/components/TopStatusIsland ui/screens/BackgroundIslandSettingsCard]
 core = core_names.map { |path| "app/src/main/java/com/nanzhufeng/transcriber/#{path}.kt" }
 _, _, tracked = Open3.capture3('git', 'ls-files', '--error-unmatch', '--', *core, chdir: ROOT.to_s)
 assert.call(tracked.success? && core.all? { |path| ROOT.join(path).file? }, "#{core.size} 个核心新增/所有者文件已纳入 Git")

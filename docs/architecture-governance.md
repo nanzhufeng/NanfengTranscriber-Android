@@ -21,6 +21,8 @@
 | 千问 API Key | `SecureApiCredentialStore` | Android Keystore AES-GCM；不进任务、结果、日志或备份 |
 | 任务与结果 | Room + `TranscriptDocumentStore` | 结果落盘后才可完成；历史是唯一完成记录 |
 | 后台提醒 | `NanfengIslandState` + `TaskProgressUpdateGate` | 通知与悬浮窗同一快照，不另算进度 |
+| 灵动岛置顶宿主 | `IslandTopmostService` | 仅用户启用的无障碍窗口token；同:transcription进程，不读取屏幕或执行手势；TaskIslandOverlay唯一管理窗口，普通悬浮窗退回安全区 |
+| 灵动岛屏幕/挖孔几何 | `TaskIslandOverlay` + `IslandWindowGeometry` | 仅拥有窗口与文字避让；屏幕/字体变更重算，不另建任务状态或改变通知进度 |
 | 灵动岛显示模式 | `IslandDisplayController` | 用户点击切换，新任务回到简洁；进度不自行展开 |
 | 队列释放 | `BackgroundTranscriptionQueue` | 完成、异常与取消都走 finally，不能以文案代替释放 |
 | 正文编辑草稿 | `TranscriptionViewModel` + `TranscriptDocumentStore` | 输入为草稿，saveTranscriptDraft经saveEdited保存JSON修订正文 |

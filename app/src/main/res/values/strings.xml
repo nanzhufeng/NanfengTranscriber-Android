@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">南枫转写</string>
+    <string name="island_topmost_name">南枫转写灵动岛置顶</string>
+    <string name="island_topmost_description">仅将转写灵动岛显示在状态栏图标上方。不读取屏幕内容、不监听界面操作、不执行手势。关闭后使用状态栏下方的普通悬浮窗，转写任务不受影响。</string>
 </resources>

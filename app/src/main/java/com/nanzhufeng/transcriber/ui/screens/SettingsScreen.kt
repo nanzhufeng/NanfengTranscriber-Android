@@ -1,7 +1,8 @@
 package com.nanzhufeng.transcriber.ui.screens
 
 import android.net.Uri
-import androidx.compose.foundation.clickable
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import androidx.compose.foundation.text.ClickableText
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
@@ -9,33 +10,45 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.Memory
+import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material.icons.outlined.FolderOpen
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.Button
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -44,20 +57,25 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.nanzhufeng.transcriber.BuildConfig
 import com.nanzhufeng.transcriber.data.modelstore.OfficialModelCatalog
 import com.nanzhufeng.transcriber.data.settings.TranscriptionSettings
@@ -66,14 +84,22 @@ import com.nanzhufeng.transcriber.domain.invocation.AsrInvocationRecord
 import com.nanzhufeng.transcriber.domain.model.ModelInstallState
 import com.nanzhufeng.transcriber.ui.TranscriptionUiState
 import com.nanzhufeng.transcriber.ui.components.SectionHeading
+import com.nanzhufeng.transcriber.ui.components.SettingsPageHeader
 import com.nanzhufeng.transcriber.ui.components.StatusPill
 import com.nanzhufeng.transcriber.ui.components.SubtleActionButton
+import com.nanzhufeng.transcriber.ui.components.WorkbenchDropdownMenu
+import com.nanzhufeng.transcriber.ui.components.WorkbenchAlertDialog
 import com.nanzhufeng.transcriber.ui.components.WorkbenchCard
 import com.nanzhufeng.transcriber.ui.components.formatBytes
 import com.nanzhufeng.transcriber.ui.theme.ActionOrange
 import com.nanzhufeng.transcriber.ui.theme.AttentionOchre
 import com.nanzhufeng.transcriber.ui.theme.ParameterPurple
 import com.nanzhufeng.transcriber.ui.theme.NanfengSkinCatalog
+import com.nanzhufeng.transcriber.ui.theme.NanfengSkinOption
+import com.nanzhufeng.transcriber.ui.theme.NanfengTranscriberTheme
+import com.nanzhufeng.transcriber.ui.theme.SettingsPageBackground
+import com.nanzhufeng.transcriber.ui.components.workbenchTextFieldColors
+import com.nanzhufeng.transcriber.ui.theme.WorkbenchControlBackground
 
 @Composable
 fun SettingsScreen(
@@ -96,107 +122,83 @@ fun SettingsScreen(
     onSkinChanged: (String) -> Unit,
     invocationRecords: List<AsrInvocationRecord>,
 ) {
-    var showingInvocationHistory by rememberSaveable { mutableStateOf(false) }
-    if (showingInvocationHistory) {
-        AsrInvocationHistoryScreen(
-            records = invocationRecords,
-            onBack = { showingInvocationHistory = false },
-        )
+    var selectedModuleName by rememberSaveable { mutableStateOf<String?>(null) }
+    val selectedModule = SettingsModule.entries.firstOrNull { it.name == selectedModuleName }
+    val rootListState = rememberLazyListState()
+    val onBack = { selectedModuleName = null }
+    if (selectedModule == SettingsModule.INVOCATIONS) {
+        AsrInvocationHistoryScreen(records = invocationRecords, onBack = onBack)
         return
     }
+    BackHandler(enabled = selectedModule != null, onBack = onBack)
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(top = 14.dp),
+        modifier = Modifier.fillMaxSize().background(SettingsPageBackground).padding(top = 14.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-            Text(
-                text = "设置",
-                style = if (expanded) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-            )
-            Spacer(Modifier.height(12.dp))
-        }
-
-        if (expanded) {
-            val moduleRows = listOf(
-                SettingsModule.APPEARANCE to SettingsModule.MODEL,
-                SettingsModule.MODEL_DETAILS to SettingsModule.TRANSCRIPTION,
-                SettingsModule.OUTPUT to SettingsModule.ISLAND,
-            )
+        SettingsPageHeader(
+            title = selectedModule?.label ?: "设置",
+            onBack = if (selectedModule == null) null else onBack,
+        )
+        if (selectedModule == null) {
             LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                    start = 16.dp,
-                    end = 16.dp,
-                    bottom = 14.dp,
-                ),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
+                modifier = Modifier.widthIn(max = if (expanded) 840.dp else 600.dp).fillMaxSize(),
+                state = rootListState,
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                items(moduleRows.size) { index ->
-                    val (leftModule, rightModule) = moduleRows[index]
-                    SettingsModuleGridRow(
-                        leftModule = leftModule,
-                        rightModule = rightModule,
-                        state = state,
-                        settings = settings,
-                        onDownloadModel = onDownloadModel,
-                        onImportModel = onImportModel,
-                        onExportModel = onExportModel,
-                        onVerifyModel = onVerifyModel,
-                        onDeleteModel = onDeleteModel,
-                        onModelChanged = onModelChanged,
-                        onLanguageChanged = onLanguageChanged,
-                        onThreadCountChanged = onThreadCountChanged,
-                        onChooseOutputDirectory = onChooseOutputDirectory,
-                        onClearOutputDirectory = onClearOutputDirectory,
-                        onConflictPolicyChanged = onConflictPolicyChanged,
-                        onSavePostProcessApiKey = onSavePostProcessApiKey,
-                        onRevealPostProcessApiKey = onRevealPostProcessApiKey,
-                        onSkinChanged = onSkinChanged,
-                        invocationRecords = invocationRecords,
-                        onOpenInvocationHistory = { showingInvocationHistory = true },
-                    )
+                item(key = "skin") {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SettingsGroupHeading("皮肤")
+                        AppearanceCard(settings, onSkinChanged)
+                    }
                 }
-                item {
-                    AboutSection()
+                items(SettingsGroup.entries, key = { it.name }) { group ->
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SettingsGroupHeading(group.title)
+                        Surface(
+                            shape = RoundedCornerShape(18.dp),
+                            color = Color.White,
+                            tonalElevation = 0.dp,
+                            shadowElevation = 0.dp,
+                        ) {
+                            Column {
+                                group.modules.forEach { module ->
+                                    SettingsMenuEntry(
+                                        module = module,
+                                        onClick = { selectedModuleName = module.name },
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
         } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                    start = 16.dp,
-                    end = 16.dp,
-                    bottom = 14.dp,
-                ),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                items(SettingsModule.entries.size) { index ->
-                    SettingsModuleCard(
-                        module = SettingsModule.entries[index],
-                        state = state,
-                        settings = settings,
-                        onDownloadModel = onDownloadModel,
-                        onImportModel = onImportModel,
-                        onExportModel = onExportModel,
-                        onVerifyModel = onVerifyModel,
-                        onDeleteModel = onDeleteModel,
-                        onModelChanged = onModelChanged,
-                        onLanguageChanged = onLanguageChanged,
-                        onThreadCountChanged = onThreadCountChanged,
-                        onChooseOutputDirectory = onChooseOutputDirectory,
-                        onClearOutputDirectory = onClearOutputDirectory,
-                        onConflictPolicyChanged = onConflictPolicyChanged,
-                        onSavePostProcessApiKey = onSavePostProcessApiKey,
-                        onRevealPostProcessApiKey = onRevealPostProcessApiKey,
-                        onSkinChanged = onSkinChanged,
-                        invocationRecords = invocationRecords,
-                        onOpenInvocationHistory = { showingInvocationHistory = true },
-                    )
-                }
-                item {
-                    AboutSection()
+            key(selectedModule) {
+                LazyColumn(
+                    modifier = Modifier.widthIn(max = 840.dp).fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                ) {
+                    item {
+                        SettingsModuleCard(
+                            module = selectedModule,
+                            state = state,
+                            settings = settings,
+                            onDownloadModel = onDownloadModel,
+                            onImportModel = onImportModel,
+                            onExportModel = onExportModel,
+                            onVerifyModel = onVerifyModel,
+                            onDeleteModel = onDeleteModel,
+                            onModelChanged = onModelChanged,
+                            onLanguageChanged = onLanguageChanged,
+                            onThreadCountChanged = onThreadCountChanged,
+                            onChooseOutputDirectory = onChooseOutputDirectory,
+                            onClearOutputDirectory = onClearOutputDirectory,
+                            onConflictPolicyChanged = onConflictPolicyChanged,
+                            onSavePostProcessApiKey = onSavePostProcessApiKey,
+                            onRevealPostProcessApiKey = onRevealPostProcessApiKey,
+                        )
+                    }
                 }
             }
         }
@@ -204,78 +206,41 @@ fun SettingsScreen(
 }
 
 @Composable
-private fun SettingsModuleGridRow(
-    leftModule: SettingsModule,
-    rightModule: SettingsModule,
-    state: TranscriptionUiState,
-    settings: TranscriptionSettings,
-    onDownloadModel: () -> Unit,
-    onImportModel: () -> Unit,
-    onExportModel: () -> Unit,
-    onVerifyModel: () -> Unit,
-    onDeleteModel: () -> Unit,
-    onModelChanged: (String) -> Unit,
-    onLanguageChanged: (String?) -> Unit,
-    onThreadCountChanged: (Int) -> Unit,
-    onChooseOutputDirectory: () -> Unit,
-    onClearOutputDirectory: () -> Unit,
-    onConflictPolicyChanged: (OutputConflictPolicy) -> Unit,
-    onSavePostProcessApiKey: (String) -> Unit,
-    onRevealPostProcessApiKey: () -> Unit,
-    onSkinChanged: (String) -> Unit,
-    invocationRecords: List<AsrInvocationRecord>,
-    onOpenInvocationHistory: () -> Unit,
+private fun SettingsGroupHeading(title: String) {
+    Text(
+        text = title,
+        modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
+        style = MaterialTheme.typography.labelLarge,
+        color = Color(0xFF666666),
+    )
+}
+
+@Composable
+private fun SettingsMenuEntry(
+    module: SettingsModule,
+    onClick: () -> Unit,
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(IntrinsicSize.Max),
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        color = Color.Transparent,
+        tonalElevation = 0.dp,
     ) {
-        SettingsModuleCard(
-            module = leftModule,
-            state = state,
-            settings = settings,
-            onDownloadModel = onDownloadModel,
-            onImportModel = onImportModel,
-            onExportModel = onExportModel,
-            onVerifyModel = onVerifyModel,
-            onDeleteModel = onDeleteModel,
-            onModelChanged = onModelChanged,
-            onLanguageChanged = onLanguageChanged,
-            onThreadCountChanged = onThreadCountChanged,
-            onChooseOutputDirectory = onChooseOutputDirectory,
-            onClearOutputDirectory = onClearOutputDirectory,
-            onConflictPolicyChanged = onConflictPolicyChanged,
-            onSavePostProcessApiKey = onSavePostProcessApiKey,
-            onRevealPostProcessApiKey = onRevealPostProcessApiKey,
-            onSkinChanged = onSkinChanged,
-            invocationRecords = invocationRecords,
-            onOpenInvocationHistory = onOpenInvocationHistory,
-            modifier = Modifier.weight(1f).fillMaxHeight(),
-        )
-        SettingsModuleCard(
-            module = rightModule,
-            state = state,
-            settings = settings,
-            onDownloadModel = onDownloadModel,
-            onImportModel = onImportModel,
-            onExportModel = onExportModel,
-            onVerifyModel = onVerifyModel,
-            onDeleteModel = onDeleteModel,
-            onModelChanged = onModelChanged,
-            onLanguageChanged = onLanguageChanged,
-            onThreadCountChanged = onThreadCountChanged,
-            onChooseOutputDirectory = onChooseOutputDirectory,
-            onClearOutputDirectory = onClearOutputDirectory,
-            onConflictPolicyChanged = onConflictPolicyChanged,
-            onSavePostProcessApiKey = onSavePostProcessApiKey,
-            onRevealPostProcessApiKey = onRevealPostProcessApiKey,
-            onSkinChanged = onSkinChanged,
-            invocationRecords = invocationRecords,
-            onOpenInvocationHistory = onOpenInvocationHistory,
-            modifier = Modifier.weight(1f).fillMaxHeight(),
-        )
+        Row(
+            modifier = Modifier.heightIn(min = 64.dp).padding(horizontal = 20.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Icon(module.icon, contentDescription = null, tint = Color(0xFF555555))
+            Text(
+                text = module.label,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.titleMedium,
+                color = Color(0xFF242424),
+            )
+            Icon(Icons.Outlined.ChevronRight, contentDescription = null,
+                tint = Color(0xFF777777))
+        }
     }
 }
 
@@ -297,22 +262,19 @@ private fun SettingsModuleCard(
     onConflictPolicyChanged: (OutputConflictPolicy) -> Unit,
     onSavePostProcessApiKey: (String) -> Unit,
     onRevealPostProcessApiKey: () -> Unit,
-    onSkinChanged: (String) -> Unit,
-    invocationRecords: List<AsrInvocationRecord>,
-    onOpenInvocationHistory: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     when (module) {
-        SettingsModule.MODEL -> ModelSelectionCard(
-            selectedModelId = settings.modelId,
-            isBusy = state.isBusy,
-            onModelChanged = onModelChanged,
-            modifier = modifier,
-        )
-        SettingsModule.MODEL_DETAILS -> Column(
+        SettingsModule.MODEL -> Column(
             modifier = modifier,
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            ModelSelectionCard(
+                selectedModelId = settings.modelId,
+                isBusy = state.isBusy,
+                onModelChanged = onModelChanged,
+                modifier = Modifier.fillMaxWidth(),
+            )
             ModelDetailsCard(
                 state = state,
                 settings = settings,
@@ -326,12 +288,6 @@ private fun SettingsModuleCard(
                 onRevealApiKey = onRevealPostProcessApiKey,
                 modifier = Modifier.fillMaxWidth(),
             )
-            if (OfficialModelCatalog.find(settings.modelId)?.requiresLocalCache == false) {
-                AsrInvocationLedgerEntry(
-                    records = invocationRecords,
-                    onOpen = onOpenInvocationHistory,
-                )
-            }
         }
         SettingsModule.TRANSCRIPTION -> TranscriptionSettingsCard(
             settings = settings,
@@ -346,8 +302,9 @@ private fun SettingsModuleCard(
             onConflictPolicyChanged = onConflictPolicyChanged,
             modifier = modifier,
         )
-        SettingsModule.APPEARANCE -> AppearanceCard(settings, onSkinChanged, modifier)
         SettingsModule.ISLAND -> BackgroundIslandSettingsCard(modifier)
+        SettingsModule.ABOUT -> AboutSection(modifier)
+        SettingsModule.INVOCATIONS -> Unit // 独立记录页由 SettingsScreen 路由。
     }
 }
 
@@ -378,7 +335,7 @@ private fun HighAccuracyServiceCard(
             "Paraformer-v2" else "Qwen Audio 3.1 Filetrans")
         Text("沿用百炼 API Key；音频上传到百炼临时空间，最长保留 48 小时，转写可能产生费用。",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        OutlinedTextField(
+        TextField(
             value = apiKey,
             onValueChange = { input ->
                 apiKey = if (!apiKeyEdited && input.startsWith(savedKeyMask)) {
@@ -390,6 +347,8 @@ private fun HighAccuracyServiceCard(
             },
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             singleLine = true,
+            shape = RoundedCornerShape(14.dp),
+            colors = workbenchTextFieldColors(),
             visualTransformation = if (apiKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
             label = { Text("百炼 API Key") },
             trailingIcon = {
@@ -530,8 +489,9 @@ private fun ModelCacheCard(
 ) {
     var showDeleteConfirmation by remember { mutableStateOf(false) }
     if (showDeleteConfirmation) {
-        AlertDialog(
+        WorkbenchAlertDialog(
             onDismissRequest = { showDeleteConfirmation = false },
+            containerColor = Color.White,
             title = { Text("删除所选模型缓存？") },
             text = {
                 Text("只删除当前选中的 ${state.modelDisplayName}，其他模型、原文件和转写结果不受影响。需要时可重新下载或导入。")
@@ -631,16 +591,15 @@ private fun ModelChoiceRow(
     onClick: () -> Unit,
 ) {
     Surface(
+        onClick = onClick,
+        enabled = enabled,
+        selected = selected,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 6.dp)
-            .clickable(
-                enabled = enabled,
-                role = Role.RadioButton,
-                onClick = onClick,
-            ),
+            .semantics { role = Role.RadioButton }
+            .padding(top = 6.dp),
         shape = RoundedCornerShape(14.dp),
-        color = if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Black.copy(alpha = 0.045f),
+        color = if (selected) MaterialTheme.colorScheme.primaryContainer else WorkbenchControlBackground,
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
@@ -704,7 +663,7 @@ private fun SelectionField(
         expanded = expanded,
         onExpandedChange = { if (enabled) expanded = !expanded },
     ) {
-        OutlinedTextField(
+        TextField(
             value = selectedLabel,
             onValueChange = {},
             modifier = Modifier
@@ -715,14 +674,18 @@ private fun SelectionField(
             singleLine = true,
             label = { Text(label) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+            shape = RoundedCornerShape(14.dp),
+            colors = workbenchTextFieldColors(),
         )
-        ExposedDropdownMenu(
+        WorkbenchDropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
         ) {
             options.forEach { (value, optionLabel) ->
                 DropdownMenuItem(
+                    modifier = Modifier.background(
+                        if (value == selectedValue) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                    ),
                     text = {
                         Text(
                             text = optionLabel,
@@ -751,19 +714,105 @@ private fun AppearanceCard(
     onSkinChanged: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var showSkinPicker by rememberSaveable { mutableStateOf(false) }
+    if (showSkinPicker) {
+        WorkbenchAlertDialog(
+            onDismissRequest = { showSkinPicker = false },
+            containerColor = Color.White,
+            title = { Text("选择皮肤") },
+            text = {
+                Column {
+                    NanfengSkinCatalog.options.forEach { skin ->
+                        SkinChoiceRow(
+                            skin = skin,
+                            selected = settings.skinId == skin.id,
+                            onClick = {
+                                if (settings.skinId != skin.id) onSkinChanged(skin.id)
+                                showSkinPicker = false
+                            },
+                        )
+                    }
+                }
+            },
+            confirmButton = {},
+        )
+    }
     WorkbenchCard(modifier = modifier.fillMaxWidth()) {
-        SectionHeading(
-            title = "皮肤",
-            color = AttentionOchre,
-        )
-        Spacer(Modifier.height(10.dp))
-        SelectionField(
-            label = "界面皮肤",
-            selectedValue = settings.skinId,
-            selectedLabel = NanfengSkinCatalog.nameOf(settings.skinId),
-            options = NanfengSkinCatalog.options.map { it.id to it.displayName },
-            onSelected = onSkinChanged,
-        )
+        Surface(
+            onClick = { showSkinPicker = true },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp),
+            color = Color.Transparent,
+        ) {
+            Row(
+                modifier = Modifier.heightIn(min = 56.dp).padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(
+                    text = NanfengSkinCatalog.nameOf(settings.skinId),
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                Icon(Icons.Outlined.ChevronRight, contentDescription = "选择皮肤")
+            }
+        }
+    }
+}
+
+@Composable
+private fun SkinChoiceRow(skin: NanfengSkinOption, selected: Boolean, onClick: () -> Unit) {
+    Surface(
+        selected = selected,
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth().padding(top = 8.dp).semantics { role = Role.RadioButton },
+        shape = RoundedCornerShape(14.dp),
+        color = if (selected) MaterialTheme.colorScheme.primaryContainer else WorkbenchControlBackground,
+    ) {
+        Row(
+            modifier = Modifier.padding(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            NanfengTranscriberTheme(skinId = skin.id) { SkinEffectPreview() }
+            Text(
+                skin.displayName,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+            )
+            RadioButton(selected = selected, onClick = null)
+        }
+    }
+}
+
+/** 直接消费各皮肤的真实令牌，不使用与当前界面不符的装饰图。 */
+@Composable
+private fun SkinEffectPreview() {
+    Column(
+        modifier = Modifier.size(width = 76.dp, height = 58.dp).clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.background).padding(5.dp).clearAndSetSemantics {},
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Surface(color = Color.White, shape = RoundedCornerShape(5.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text("转写", fontSize = 8.sp, lineHeight = 10.sp)
+                Surface(color = MaterialTheme.colorScheme.primary, shape = RoundedCornerShape(50)) {
+                    Text("开始", modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
+                        color = MaterialTheme.colorScheme.onPrimary, fontSize = 6.sp, lineHeight = 8.sp)
+                }
+            }
+        }
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+            Box(Modifier.weight(1f).height(10.dp).clip(RoundedCornerShape(50))
+                .background(MaterialTheme.colorScheme.primaryContainer))
+            Box(Modifier.weight(1f).height(10.dp).clip(RoundedCornerShape(50)).background(Color.White))
+            Box(Modifier.weight(1f).height(10.dp).clip(RoundedCornerShape(50)).background(Color.White))
+        }
     }
 }
 
@@ -772,14 +821,6 @@ private fun AboutSection(
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
-        Text(
-            text = "关于",
-            modifier = Modifier.fillMaxWidth(),
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center,
-        )
-        Spacer(Modifier.height(10.dp))
         WorkbenchCard(
             modifier = Modifier.fillMaxWidth(),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
@@ -788,18 +829,18 @@ private fun AboutSection(
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
                         text = "南枫转写 Android",
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
                         text = "本地优先的音频、视频转写与明确导出。",
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, lineHeight = 16.sp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.56f))
+            Spacer(Modifier.height(8.dp).fillMaxWidth().background(SettingsPageBackground))
             SelectionContainer {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
@@ -812,7 +853,7 @@ private fun AboutSection(
                     AboutInfoLine("构建时间", BuildConfig.BUILD_TIME)
                 }
             }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.56f))
+            Spacer(Modifier.height(8.dp).fillMaxWidth().background(SettingsPageBackground))
             SelectionContainer {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
@@ -845,7 +886,7 @@ private fun AboutInfoLine(label: String, value: String) {
     }
     Text(
         text = text,
-        style = MaterialTheme.typography.bodyMedium,
+        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, lineHeight = 16.sp),
         color = MaterialTheme.colorScheme.onSurface,
         modifier = Modifier.padding(vertical = 2.dp),
     )
@@ -874,25 +915,33 @@ private fun AboutLinkInfoLine(
         }
         pop()
     }
-    ClickableText(
-        text = text,
-        style = MaterialTheme.typography.bodyMedium.copy(
-            color = MaterialTheme.colorScheme.onSurface,
-        ),
-        modifier = Modifier
-            .padding(vertical = 2.dp)
-            .semantics {
+    val textMeasurer = rememberTextMeasurer()
+    val baseStyle = MaterialTheme.typography.bodySmall.copy(
+        fontSize = 11.sp,
+        lineHeight = 16.sp,
+        color = MaterialTheme.colorScheme.onSurface,
+    )
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val naturalWidth = textMeasurer.measure(text, style = baseStyle, softWrap = false, maxLines = 1).size.width
+        val scale = ((constraints.maxWidth - 2).coerceAtLeast(1).toFloat() / naturalWidth.coerceAtLeast(1))
+            .coerceAtMost(1f)
+        ClickableText(
+            text = text,
+            style = baseStyle.copy(fontSize = baseStyle.fontSize * scale, lineHeight = baseStyle.lineHeight * scale),
+            softWrap = false,
+            maxLines = 1,
+            modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp).semantics {
                 onClick(label = "打开 GitHub 仓库") {
                     openRepository()
                     true
                 }
             },
-        onClick = { offset ->
-            text.getStringAnnotations(tag = "URL", start = offset, end = offset)
-                .firstOrNull()
-                ?.let { openRepository() }
-        },
-    )
+            onClick = { offset ->
+                text.getStringAnnotations(tag = "URL", start = offset, end = offset)
+                    .firstOrNull()?.let { openRepository() }
+            },
+        )
+    }
 }
 
 @Composable
@@ -930,13 +979,19 @@ private fun modelStateText(state: ModelInstallState): String = when (state) {
 
 private fun threadLabel(count: Int): String = if (count == 0) "自动（推荐）" else "$count 线程"
 
-private enum class SettingsModule {
-    APPEARANCE,
-    MODEL,
-    MODEL_DETAILS,
-    TRANSCRIPTION,
-    OUTPUT,
-    ISLAND,
+private enum class SettingsModule(val label: String, val icon: ImageVector) {
+    MODEL("转写模型", Icons.Outlined.Memory),
+    TRANSCRIPTION("转写参数", Icons.Outlined.Tune),
+    OUTPUT("输出与文件", Icons.Outlined.FolderOpen),
+    ISLAND("灵动岛", Icons.Outlined.Notifications),
+    INVOCATIONS("调用记录", Icons.Outlined.History),
+    ABOUT("关于", Icons.Outlined.Info),
+}
+
+private enum class SettingsGroup(val title: String, val modules: List<SettingsModule>) {
+    APPEARANCE("提醒", listOf(SettingsModule.ISLAND)),
+    TRANSCRIPTION("转写与文件", listOf(SettingsModule.MODEL, SettingsModule.INVOCATIONS, SettingsModule.TRANSCRIPTION, SettingsModule.OUTPUT)),
+    INFORMATION("关于", listOf(SettingsModule.ABOUT)),
 }
 
 private enum class LanguageOption(val label: String, val code: String?) {

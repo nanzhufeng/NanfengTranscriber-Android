@@ -1,0 +1,1 @@
+package: name='com.nanzhufeng.transcriber' versionCode='31' versionName='0.14.16' platformBuildVersionName='15' platformBuildVersionCode='35' compileSdkVersion='35' compileSdkVersionCodename='15'

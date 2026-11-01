@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.nanzhufeng.transcriber.domain.task.IslandDisplayControllerTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-10-29T02:48:57" hostname="nanzhufengs-MacBook-Pro-2.local" time="0.002">
+  <properties/>
+  <testcase name="expandedOuterHeaderStillReservesTheSamePhysicalCamera" classname="com.nanzhufeng.transcriber.domain.task.IslandDisplayControllerTest" time="0.002"/>
+  <testcase name="newTaskAndReturningFromTheAppUseCompactMode" classname="com.nanzhufeng.transcriber.domain.task.IslandDisplayControllerTest" time="0.0"/>
+  <testcase name="innerScreenAndLandscapeRetainOrdinarySafeAreaLayout" classname="com.nanzhufeng.transcriber.domain.task.IslandDisplayControllerTest" time="0.0"/>
+  <testcase name="ordinaryOverlayNeverPlacesTextUnderSystemStatusIcons" classname="com.nanzhufeng.transcriber.domain.task.IslandDisplayControllerTest" time="0.0"/>
+  <testcase name="missingCutoutMetadataUsesAConservativeCenterClearance" classname="com.nanzhufeng.transcriber.domain.task.IslandDisplayControllerTest" time="0.0"/>
+  <testcase name="outerScreenStartsAtStatusBarAndLeavesActualCameraClear" classname="com.nanzhufeng.transcriber.domain.task.IslandDisplayControllerTest" time="0.0"/>
+  <testcase name="foldingWithUnchangedProgressRetainsUserDisplayMode" classname="com.nanzhufeng.transcriber.domain.task.IslandDisplayControllerTest" time="0.0"/>
+  <testcase name="beginsWithOneLineAndOnlyATapExpands" classname="com.nanzhufeng.transcriber.domain.task.IslandDisplayControllerTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

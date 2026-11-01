@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.nanzhufeng.transcriber.data.modelstore.ModelAssetManagerTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-10-29T02:48:56" hostname="nanzhufengs-MacBook-Pro-2.local" time="0.473">
+  <properties/>
+  <testcase name="importAndExportRoundTripUsesSameVerifiedModel" classname="com.nanzhufeng.transcriber.data.modelstore.ModelAssetManagerTest" time="0.227"/>
+  <testcase name="rangeDownloadResumesExistingPartialAndCommitsOnce" classname="com.nanzhufeng.transcriber.data.modelstore.ModelAssetManagerTest" time="0.096"/>
+  <testcase name="hashMismatchReturnsStructuredIntegrityFailure" classname="com.nanzhufeng.transcriber.data.modelstore.ModelAssetManagerTest" time="0.017"/>
+  <testcase name="serverIgnoringRangeRestartsWithoutDuplicatingBytes" classname="com.nanzhufeng.transcriber.data.modelstore.ModelAssetManagerTest" time="0.032"/>
+  <testcase name="multiFileModelDownloadsAndPortableBundleRoundTrips" classname="com.nanzhufeng.transcriber.data.modelstore.ModelAssetManagerTest" time="0.101"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

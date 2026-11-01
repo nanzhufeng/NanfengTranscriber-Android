@@ -41,10 +41,8 @@ import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.MusicVideo
 import androidx.compose.material.icons.outlined.Replay
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -56,7 +54,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -87,6 +85,11 @@ import com.nanzhufeng.transcriber.ui.PendingSourceUi
 import com.nanzhufeng.transcriber.ui.TranscriptionUiState
 import com.nanzhufeng.transcriber.ui.components.SectionHeading
 import com.nanzhufeng.transcriber.ui.components.TaskMediaPreview
+import com.nanzhufeng.transcriber.ui.theme.WorkbenchControlBackground
+import com.nanzhufeng.transcriber.ui.components.workbenchTextFieldColors
+import com.nanzhufeng.transcriber.ui.components.WorkbenchPageHeader
+import com.nanzhufeng.transcriber.ui.components.WorkbenchDropdownMenu
+import com.nanzhufeng.transcriber.ui.components.WorkbenchAlertDialog
 import com.nanzhufeng.transcriber.ui.components.WorkbenchCard
 import com.nanzhufeng.transcriber.ui.components.formatBytes
 import com.nanzhufeng.transcriber.ui.components.formatDateTime
@@ -210,7 +213,8 @@ fun HomeScreen(
     }
 
     pendingDelete?.let { taskId ->
-        AlertDialog(
+        WorkbenchAlertDialog(
+            containerColor = Color.White,
             onDismissRequest = { pendingDelete = null },
             title = { Text("删除这条转写任务？") },
             text = {
@@ -360,30 +364,7 @@ private fun TranscriptionModelCard(
 
 @Composable
 private fun HomeHeader(expanded: Boolean) {
-    if (expanded) {
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text("首页", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            Text(
-                "批量加入音视频，任务可在后台顺序转写",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodyMedium,
-            )
-        }
-    } else {
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Image(
-                painter = painterResource(R.mipmap.app_icon),
-                contentDescription = "南枫转写",
-                modifier = Modifier.size(52.dp),
-            )
-            Text(
-                text = "南枫转写",
-                modifier = Modifier.padding(start = 12.dp),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-            )
-        }
-    }
+    WorkbenchPageHeader(title = if (expanded) "首页" else "南枫转写")
 }
 
 @Composable
@@ -515,7 +496,7 @@ private fun CurrentWorkCard(
                             onEdit = { editingSource = source },
                             onDelete = { onRemovePendingSource(source.key) },
                         )
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.68f))
+                        Spacer(Modifier.height(8.dp))
                     }
                     itemsIndexed(pendingTasks, key = { _, task -> task.id }) { index, task ->
                         TranscriptionQueueRow(
@@ -530,7 +511,7 @@ private fun CurrentWorkCard(
                             onDeleteTask = onDeleteTask,
                         )
                         if (index < pendingTasks.lastIndex) {
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.68f))
+                            Spacer(Modifier.height(8.dp))
                         }
                     }
                 }
@@ -576,7 +557,8 @@ private fun PendingSourceRow(
     onDelete: () -> Unit,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().height(if (expanded) 84.dp else 78.dp).padding(horizontal = 6.dp),
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(WorkbenchControlBackground)
+            .height(if (expanded) 84.dp else 78.dp).padding(horizontal = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(7.dp),
     ) {
@@ -668,7 +650,8 @@ private fun PendingSourceOptionsDialog(
                 ?: requireNotNull(OfficialModelCatalog.find("sensevoice-small-int8")).manifest.modelId,
         )
     }
-    AlertDialog(
+    WorkbenchAlertDialog(
+            containerColor = Color.White,
         onDismissRequest = onDismiss,
         title = { Text("单项转写设置") },
         text = {
@@ -712,7 +695,7 @@ private fun QueueSelectionField(
         expanded = expanded,
         onExpandedChange = { expanded = !expanded },
     ) {
-        OutlinedTextField(
+        TextField(
             value = selectedLabel,
             onValueChange = {},
             readOnly = true,
@@ -720,8 +703,10 @@ private fun QueueSelectionField(
             label = { Text(label) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
             modifier = Modifier.menuAnchor().fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp),
+            colors = workbenchTextFieldColors(),
         )
-        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        WorkbenchDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             options.forEach { (value, optionLabel) ->
                 DropdownMenuItem(
                     text = { Text(optionLabel) },
@@ -773,7 +758,7 @@ private fun TranscriptionQueueRow(
             .clip(RoundedCornerShape(14.dp))
             .clickable(enabled = canExpand) { detailsExpanded = !detailsExpanded },
         shape = RoundedCornerShape(14.dp),
-        color = if (active) Color(0xFFFFF3D6) else Color.Transparent,
+        color = if (active) Color(0xFFFFF3D6) else WorkbenchControlBackground,
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 6.dp),
@@ -1019,7 +1004,7 @@ private fun ActionDock(
             modifier = Modifier.fillMaxWidth().clickable(enabled = !state.isBusy, onClick = onChooseSource),
             color = if (dragActive) MaterialTheme.colorScheme.primaryContainer else Color.Black.copy(alpha = 0.055f),
             shape = RoundedCornerShape(12.dp),
-            shadowElevation = if (dragActive) 2.dp else 0.dp,
+            shadowElevation = 0.dp,
         ) {
             Row(
                 modifier = Modifier

@@ -1,0 +1,56 @@
+[
+  {
+    "case": "outer-compact",
+    "frame": [
+      266,
+      5,
+      873,
+      140
+    ]
+  },
+  {
+    "case": "outer-expanded",
+    "frame": [
+      221,
+      5,
+      919,
+      596
+    ]
+  },
+  {
+    "case": "outer-unknown-large",
+    "frame": [
+      266,
+      5,
+      873,
+      140
+    ]
+  },
+  {
+    "case": "inner-compact",
+    "frame": [
+      820,
+      154,
+      1427,
+      286
+    ]
+  },
+  {
+    "case": "inner-expanded",
+    "frame": [
+      682,
+      154,
+      1566,
+      769
+    ]
+  },
+  {
+    "case": "outer-expanded-after-fold",
+    "frame": [
+      221,
+      5,
+      919,
+      596
+    ]
+  }
+]

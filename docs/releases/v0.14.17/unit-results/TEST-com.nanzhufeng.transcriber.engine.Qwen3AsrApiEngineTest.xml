@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.nanzhufeng.transcriber.engine.Qwen3AsrApiEngineTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-10-29T02:48:57" hostname="nanzhufengs-MacBook-Pro-2.local" time="0.033">
+  <properties/>
+  <testcase name="maps API authentication errors without storing a response body" classname="com.nanzhufeng.transcriber.engine.Qwen3AsrApiEngineTest" time="0.022"/>
+  <testcase name="sends exactly one official input audio content item" classname="com.nanzhufeng.transcriber.engine.Qwen3AsrApiEngineTest" time="0.011"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

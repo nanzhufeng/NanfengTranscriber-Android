@@ -1,0 +1,191 @@
+[
+  {
+    "frame": [
+      266,
+      123,
+      873,
+      255
+    ],
+    "layer": 111000,
+    "type": "APPLICATION_OVERLAY",
+    "case": "ordinary-safe",
+    "statusbar": {
+      "frame": [
+        0,
+        0,
+        1140,
+        107
+      ],
+      "layer": 151000,
+      "type": "STATUS_BAR"
+    }
+  },
+  {
+    "frame": [
+      266,
+      5,
+      873,
+      137
+    ],
+    "layer": 311000,
+    "type": "ACCESSIBILITY_OVERLAY",
+    "case": "topmost-dark",
+    "statusbar": {
+      "frame": [
+        0,
+        0,
+        1140,
+        107
+      ],
+      "layer": 151000,
+      "type": "STATUS_BAR"
+    }
+  },
+  {
+    "frame": [
+      266,
+      5,
+      873,
+      137
+    ],
+    "layer": 311000,
+    "type": "ACCESSIBILITY_OVERLAY",
+    "case": "topmost-white",
+    "statusbar": {
+      "frame": [
+        0,
+        0,
+        1140,
+        107
+      ],
+      "layer": 151000,
+      "type": "STATUS_BAR"
+    }
+  },
+  {
+    "frame": [
+      221,
+      5,
+      919,
+      590
+    ],
+    "layer": 311000,
+    "type": "ACCESSIBILITY_OVERLAY",
+    "case": "topmost-expanded",
+    "statusbar": {
+      "frame": [
+        0,
+        0,
+        1140,
+        107
+      ],
+      "layer": 151000,
+      "type": "STATUS_BAR"
+    }
+  },
+  {
+    "frame": [
+      128,
+      123,
+      1012,
+      738
+    ],
+    "layer": 111000,
+    "type": "APPLICATION_OVERLAY",
+    "case": "revoked-expanded-safe",
+    "statusbar": {
+      "frame": [
+        0,
+        0,
+        1140,
+        107
+      ],
+      "layer": 151000,
+      "type": "STATUS_BAR"
+    }
+  },
+  {
+    "frame": [
+      221,
+      5,
+      919,
+      590
+    ],
+    "layer": 311000,
+    "type": "ACCESSIBILITY_OVERLAY",
+    "case": "reconnected-expanded",
+    "statusbar": {
+      "frame": [
+        0,
+        0,
+        1140,
+        107
+      ],
+      "layer": 151000,
+      "type": "STATUS_BAR"
+    }
+  },
+  {
+    "frame": [
+      682,
+      117,
+      1566,
+      732
+    ],
+    "layer": 311000,
+    "type": "ACCESSIBILITY_OVERLAY",
+    "case": "inner-expanded",
+    "statusbar": {
+      "frame": [
+        0,
+        0,
+        2248,
+        101
+      ],
+      "layer": 151000,
+      "type": "STATUS_BAR"
+    }
+  },
+  {
+    "frame": [
+      221,
+      5,
+      919,
+      590
+    ],
+    "layer": 311000,
+    "type": "ACCESSIBILITY_OVERLAY",
+    "case": "outer-after-fold",
+    "statusbar": {
+      "frame": [
+        0,
+        0,
+        1140,
+        107
+      ],
+      "layer": 151000,
+      "type": "STATUS_BAR"
+    }
+  },
+  {
+    "frame": [
+      266,
+      5,
+      873,
+      137
+    ],
+    "layer": 311000,
+    "type": "ACCESSIBILITY_OVERLAY",
+    "case": "unknown-large",
+    "statusbar": {
+      "frame": [
+        0,
+        0,
+        1140,
+        107
+      ],
+      "layer": 151000,
+      "type": "STATUS_BAR"
+    }
+  }
+]
