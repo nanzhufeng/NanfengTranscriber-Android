@@ -4,9 +4,9 @@
 
 当前能力、测试日期、验收缺口、Git/远端状态只维护于 [PROJECT_STATUS](PROJECT_STATUS.md)；合同归属由 [合同索引](contracts-index.md) 路由。开始开发前先核对实际工作区，不把旧检查当作当前证明。
 
-## 当前任务：2026-11-01正式发布GitHub
+## 当前任务：2026-11-01正式发布GitHub已完成
 
-用户已授权提交推送与正式Release。发布0.14.17 (32)，冻结SHA-256为068cd1d903a9efcec7294623b2d214cfb808d88c177c9aedce283d00aee868f9。141项源码摘要一致；本地APK缺失后已从手机只读回拉并核对与冻结证据相同，无重建/重签/覆盖主设备。104项Release JVM与lint复核通过，README三页来自同一正式包的隔离模拟器实际运行。远端发布核验完成后更新本节。
+用户已授权提交推送与正式Release。发布0.14.17 (32)，冻结SHA-256为068cd1d903a9efcec7294623b2d214cfb808d88c177c9aedce283d00aee868f9。141项源码摘要一致；本地APK缺失后已从手机只读回拉并核对与冻结证据相同，无重建/重签/覆盖主设备。104项Release JVM与lint复核通过，README三页来自同一正式包的隔离模拟器实际运行。main源码与README已推送，v0.14.17正式Release已公开并设为latest，标签指向a8fbfae01b13e9ca04355be7ea856d24c41ab7ae。唯一APK uploaded，匿名下载HTTP200/106950608字节、哈希及逐字节一致；[发布回执](releases/v0.14.17/publication-verification.json)。本轮停止于授权发布完成；后续仅提交这次回执文档，原design-qa.md保留。下方为安装阶段历史。
 
 ## 当前任务：0.14.17状态栏置顶修复已授权覆盖
 

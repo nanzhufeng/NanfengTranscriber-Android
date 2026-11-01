@@ -1,0 +1,24 @@
+{
+  "verified_date": "2026-11-01",
+  "release_url": "https://github.com/nanzhufeng/NanfengTranscriber-Android/releases/tag/v0.14.17",
+  "tag": "v0.14.17",
+  "target_commit": "a8fbfae01b13e9ca04355be7ea856d24c41ab7ae",
+  "draft": false,
+  "prerelease": false,
+  "latest": true,
+  "asset": {
+    "name": "nanfeng-transcriber-android-v0.14.17.apk",
+    "size": 106950608,
+    "state": "uploaded",
+    "digest": "sha256:068cd1d903a9efcec7294623b2d214cfb808d88c177c9aedce283d00aee868f9",
+    "browser_download_url": "https://github.com/nanzhufeng/NanfengTranscriber-Android/releases/download/v0.14.17/nanfeng-transcriber-android-v0.14.17.apk"
+  },
+  "anonymous_download_http": 200,
+  "download_sha256": "068cd1d903a9efcec7294623b2d214cfb808d88c177c9aedce283d00aee868f9",
+  "download_bytes_equal_frozen_apk": true,
+  "source_files_match_release_commit": 141,
+  "release_unit_tests": 104,
+  "lint_errors": 0,
+  "ci_workflows": "none configured",
+  "main_device_operations": "read-only package/APK recovery; no install, launch, data or permission changes"
+}

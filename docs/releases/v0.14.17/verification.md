@@ -19,3 +19,9 @@
 ## 2026-11-01 GitHub正式发布准备
 
 141项源码摘要与冻结清单一致。原本地交付APK已被清理，本轮从OPPO只读回拉现装0.14.17，SHA-256/字节数与冻结证据一致，恢复为同一份正式包；未重建或重签。重新执行Release JVM/lint通过（104项失败/错误/跳过均0）；同包在隔离模拟器运行三页[README截图](../../qa/readme-v0.14.17/README.md)。未覆盖、启动主设备、改权限或执行收费调用。新增归档日志中的本机路径已脱敏，原始证据在仓库外保留。远端发布待本轮回读确认。
+
+## GitHub正式发布完成（2026-11-01）
+
+[v0.14.17正式Release](https://github.com/nanzhufeng/NanfengTranscriber-Android/releases/tag/v0.14.17)已公开且为latest，非草稿/预发布；标签指向a8fbfae01b13e9ca04355be7ea856d24c41ab7ae，141项生产/构建文件与冻结源码逐项相符。源码及README预览已推送main。仅附用户安装APK，没有额外校验附件。
+
+附件nanfeng-transcriber-android-v0.14.17.apk为106950608字节、state=uploaded；GitHub digest与原冻结SHA-256一致。匿名公开下载HTTP200，回拉106950608字节，SHA-256与本地冻结包相同并逐字节一致。[远端核验](publication-verification.json)。上传首次EOF后保留草稿并清理不完整附件，最终HTTP/1.1无显式代理传输成功；没有修改用户代理设置。发布未触发设备安装或真实ASR/收费调用。ColorOS置顶实际效果仍为未复验。

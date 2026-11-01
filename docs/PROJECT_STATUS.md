@@ -6,7 +6,7 @@
 
 - Last verified: 2026-11-01；源码冻结/104项Release JVM及lint复核、同APK隔离运行截图；10月29日的0.14.17 Release构建/104项JVM/lint/验签与隔离模拟器置顶验证；本轮已授权同签名保数据覆盖并回拉核验，未自动启动。
 - Verified branch: main
-- Code baseline: 0e0d7896552566d262c3f94f2c77ea8a0a64bae4
+- Code baseline: a8fbfae01b13e9ca04355be7ea856d24c41ab7ae（v0.14.17发布代码；其后仅发布回执文档）
 - Verification scope: WORKTREE；底层HEAD如上；置顶修复已纳入0.14.17 (32)，141项生产/构建源码清单及正式构建见[记录](releases/v0.14.17/verification.md)；已同签名保数据覆盖并回拉核验，不视为ColorOS业务/UI验收。
 - Verified by: Codex
 - Status: Active
@@ -19,7 +19,7 @@
 
 - 界面WORKTREE已按南枫记标准统一灰底白卡、居中标题、胶囊操作及填充控件；全软件取消线框与阴影。设置皮肤单值选框点击打开含真实效果预览的六选弹窗；卡外分组标题统一、调用记录紧跟模型、“信息”改“关于”。Debug与隔离模拟器通过，详见[证据](qa/ui-surfaces-20261020/README.md)。
 
-- 本地正式包及主设备已核对为Android 0.14.17 (32)：本地SenseVoice、云端Qwen文件转写和Paraformer低成本模式，队列/断点/历史/后台提醒与多格式导出，边界见[领域合同](domain-rules.md)。预设存在不等于全模型已真实验收。 本轮未发布，远端发布仍沿用下方既有证据。
+- 本地正式包及主设备已核对为Android 0.14.17 (32)：本地SenseVoice、云端Qwen文件转写和Paraformer低成本模式，队列/断点/历史/后台提醒与多格式导出，边界见[领域合同](domain-rules.md)。预设存在不等于全模型已真实验收。 本轮已发布[v0.14.17](https://github.com/nanzhufeng/NanfengTranscriber-Android/releases/tag/v0.14.17)，回执见[发布核验](releases/v0.14.17/publication-verification.json)。
 - 正文明确保存、新任务按冻结参数自动导出一次已实现；旧历史不补导出。原文件核对/结果页为叉号关闭。保存、重开及TXT/MD隔离验收见[2026-10-15记录](qa/transcript-save-auto-export-20261015/README.md)，不是本轮重测。
 - Paraformer无语音尾段修复已在原任务闭环：一次授权云端复现捕获SUCCESS_WITH_NO_VALID_FRAGMENT，修复后复用本地回执归档并读取1737字正文；仅该明确码作为空分块继续，整文件无文字仍为NO_SPEECH，其他失败不放行，见[修复证据](qa/paraformer-no-speech-tail-20261017/README.md)。
 - 2026-10-17已同签名保数据覆盖OPPO至0.14.12，回拉APK逐字节一致，首装时间保留；CE/DE标识读取被拒绝，不宣称全库逐字节审计。
@@ -27,15 +27,17 @@
 
 ## In Progress
 
-- 用户11月1日授权正式发布GitHub；源码、正式APK与README截图已核对，提交推送及远端发布回读进行中。未重建/重签冻结包。
+- 用户11月1日授权的GitHub正式发布已完成；main源码/README、v0.14.17 latest Release及APK匿名下载回拉逐字节核验通过。未重建/重签冻结包。
 
-- 置顶修复、独立模拟器与0.14.17授权保数据覆盖已完成；用户手动开启置顶后的ColorOS业务/UI验收尚未执行，代码/文档未提交发布。
+- 置顶修复、独立模拟器与0.14.17授权保数据覆盖已完成；用户手动开启置顶后的ColorOS业务/UI验收尚未执行，源码与README已提交发布；本轮不扩展ColorOS业务验收。
 
 ## Blocked
 
 - 当前交付无已确认阻塞；未开始的验收列为缺口，不等同阻塞。
 
 ## Tests
+
+2026-11-01发布复核：104项Release JVM与lint通过；同冻结APK隔离运行三页README预览，141项源码与标签提交一致；正式Release/附件与公开下载回拉通过，见[发布回执](releases/v0.14.17/publication-verification.json)。无GitHub Actions workflow，不虚构云端检查。
 
 | 检查 | 结论 | 实际运行日期 / 平台 / 版本范围 | 证据与本次复核边界 |
 | --- | --- | --- | --- |
@@ -70,14 +72,14 @@
 
 - Sync checked at: 2026-10-29；0.14.17源码冻结清单、正式包、隔离置顶证据；新增OPPO同签名覆盖/回拉字节与数据身份回执。
 - Code / docs sync: OK（0.14.17候选、生产/构建源码清单、签名、隔离验证与交接；最新安装证据0.14.17）；历史截图和测试保留各自实际时间。
-- Git working tree: DIRTY；UI、主题、悬浮岛外观及对应文档为本轮WIP；SettingsPageHeader.kt沿用此前暂存状态，本轮后续修改在工作区；既有app版本改动、发布记录和design-qa.md保留。
-- Remote sync: LOCAL ONLY（本轮WIP）；HEAD仍为0e0d7896552566d262c3f94f2c77ea8a0a64bae4，未提交/推送。原远端main及v0.14.12发布状态引用2026-10-18复核，本轮不刷新远端验证。
+- Git working tree: 发布代码与交付文档已提交；原有design-qa.md未跟踪文件保留。未执行reset/clean/stash。
+- Remote sync: SYNCED；main已推送发布代码a8fbfae，v0.14.17正式Release为latest，唯一APK uploaded且匿名下载/哈希/cmp通过；后续仅同步发布回执文档。
 - Rollback point: 242e2cc5ef69c67795259da207097d200bfe52f4（v0.14.12已签名、原任务恢复及公开回拉验证的代码交付点），不是数据库降级或全部业务稳定性保证。本次文档可从HEAD原文件或仓库外精确备份单独撤回。
 - Secrets/config risk: NONE（本次文案与开发资产常见秘密模式检查范围）；全历史及真实配置审计UNKNOWN。未输出/入仓签名凭据，不读取设备私有数据；正式构建仅使用原配置签名。不改全局Skill、记忆或网络配置。
 
 ## Next
 
-1. 当前0.14.17已覆盖，停止于授权安装完成。用户在系统无障碍页手动开启置顶服务后自行查看ColorOS效果；未自动启动、改权限、提交或发布。
+1. 当前0.14.17已覆盖，停止于授权安装完成。用户在系统无障碍页手动开启置顶服务后自行查看ColorOS效果；未自动启动或改权限；本轮仅发布已核验版本。
 2. 需要继续云端验收时另行确定样本/费用范围，补Qwen链路和结算证据；按明确需求补当前版长时后台或独立CER验收，不自动操作主设备。
 
 ## 历史归档
